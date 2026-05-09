@@ -1,0 +1,36 @@
+{
+  "plugin_id": "continuum.arrouter",
+  "version": "0.1.0",
+  "checksum": "__CHECKSUM__",
+  "continuum_api_version": "v1",
+  "capabilities": [
+    {
+      "type": "event_consumer.v1",
+      "id": "router",
+      "display_name": "Router",
+      "description": "Routes request events to a registered Radarr/Sonarr based on rules.",
+      "subscriptions": [
+        "plugin.continuum.requests.submitted",
+        "plugin.continuum.requests.cancelled"
+      ]
+    },
+    {
+      "type": "scheduled_task.v1",
+      "id": "poll",
+      "display_name": "Poll *arrs",
+      "description": "Polls registered *arrs for download/import progress."
+    },
+    {
+      "type": "http_routes.v1",
+      "id": "admin",
+      "display_name": "Arrouter Admin",
+      "description": "Admin SPA for the arrouter plugin."
+    }
+  ],
+  "http_routes": [
+    {"id": "api",    "method": "*",   "path": "/api/admin/*", "access": "admin"},
+    {"id": "assets", "method": "GET", "path": "/assets/*",    "access": "admin"},
+    {"id": "spa",    "method": "GET", "path": "/admin*",      "access": "admin", "navigable": true, "navigation_label": "Arrouter", "navigation_kind": "admin"}
+  ],
+  "global_config_schema": []
+}

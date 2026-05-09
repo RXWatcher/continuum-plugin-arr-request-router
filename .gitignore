@@ -1,5 +1,5 @@
-continuum-plugin-arrouter
-*.test
-.DS_Store
-node_modules/
-web/dist/
+/continuum-plugin-arrouter
+/.idea
+/*.test
+*.out
+continuum-plugin-arrouter-linux-amd64
