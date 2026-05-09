@@ -5,14 +5,15 @@ go 1.26.0
 replace github.com/ContinuumApp/continuum-plugin-sdk => /opt/worktrees/continuum-plugin-sdk-rh
 
 require (
+	github.com/ContinuumApp/continuum-plugin-sdk v0.3.7
+	github.com/go-chi/chi/v5 v5.2.5
 	github.com/golang-migrate/migrate/v4 v4.19.1
+	github.com/hashicorp/go-hclog v1.6.3
 	github.com/jackc/pgx/v5 v5.5.4
 )
 
 require (
-	github.com/ContinuumApp/continuum-plugin-sdk v0.3.7 // indirect
 	github.com/fatih/color v1.13.0 // indirect
-	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
