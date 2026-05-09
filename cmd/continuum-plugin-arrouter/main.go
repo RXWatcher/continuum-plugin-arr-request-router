@@ -1,15 +1,259 @@
 package main
 
 import (
+	"context"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"fmt"
 	"os"
+	goruntime "runtime"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
+	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
+	sdkruntime "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
+
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/arr"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/consumer"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/httproutes"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/migrate"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/poll"
+	pluginrt "github.com/ContinuumApp/continuum-plugin-arrouter/internal/runtime"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/tmdb"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/web"
 )
 
 //go:embed manifest.json
 var manifestRaw []byte
 
 func main() {
-	fmt.Fprintln(os.Stderr, "continuum-plugin-arrouter: stub")
-	os.Exit(0)
+	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-arrouter"})
+
+	manifest, err := loadManifest()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "load manifest: %v\n", err)
+		os.Exit(1)
+	}
+
+	httpSrv := httproutes.NewServer()
+
+	var (
+		poolPtr    atomic.Pointer[pgxpool.Pool]
+		storePtr   atomic.Pointer[store.Store]
+		eventsPtr  atomic.Pointer[event.Publisher]
+		submitPtr  atomic.Pointer[consumer.SubmitHandler]
+		cancelPtr  atomic.Pointer[consumer.CancelHandler]
+	)
+
+	// pollLoopMu guards the cancel func for the background poll goroutine.
+	var pollLoopMu sync.Mutex
+	var pollLoopCancel context.CancelFunc
+
+	// radarrFactory and sonarrFactory create per-arr clients. They are
+	// deterministic (no shared state) so they do not need atomic pointers.
+	radarrFactory := func(u, key string) *arr.Radarr { return arr.NewRadarr(u, key) }
+	sonarrFactory := func(u, key string) *arr.Sonarr { return arr.NewSonarr(u, key) }
+
+	// pollCfgSnapshot holds per-Configure values for the poller closure.
+	type pollCfgSnapshot struct {
+		staleAfterHours int
+		secretKey       string
+	}
+	var pollCfgPtr atomic.Pointer[pollCfgSnapshot]
+
+	// pollerDeps is the lazy-deps closure for the poller. Returns nil until the
+	// first Configure call populates the pointers.
+	pollerDeps := func() *poll.Deps {
+		s := storePtr.Load()
+		ev := eventsPtr.Load()
+		c := pollCfgPtr.Load()
+		if s == nil || c == nil {
+			return nil
+		}
+		return &poll.Deps{
+			Store:           s,
+			Radarr:          radarrFactory,
+			Sonarr:          sonarrFactory,
+			Events:          ev,
+			StaleAfterHours: c.staleAfterHours,
+			SecretKey:       c.secretKey,
+		}
+	}
+
+	poller := poll.New(pollerDeps, logger.Named("poll"))
+
+	// startPollLoop (re)starts the background poll goroutine at the given interval.
+	startPollLoop := func(interval time.Duration) {
+		pollLoopMu.Lock()
+		defer pollLoopMu.Unlock()
+		if pollLoopCancel != nil {
+			pollLoopCancel()
+		}
+		if interval <= 0 {
+			pollLoopCancel = nil
+			return
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		pollLoopCancel = cancel
+		go func() {
+			t := time.NewTicker(interval)
+			defer t.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-t.C:
+					if err := poller.Run(ctx); err != nil && ctx.Err() == nil {
+						logger.Warn("poll run error", "err", err)
+					}
+				}
+			}
+		}()
+	}
+
+	rt := pluginrt.New(manifest, func(cfg pluginrt.Config) error {
+		ctx := context.Background()
+
+		p, err := pgxpool.New(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return fmt.Errorf("pgxpool: %w", err)
+		}
+		if err := migrate.Run(ctx, cfg.DatabaseURL); err != nil {
+			p.Close()
+			return fmt.Errorf("migrate: %w", err)
+		}
+
+		s := store.New(p)
+		ev := event.New(sdkruntime.Host(), logger.Named("event"))
+
+		tmdbClient := tmdb.New("https://api.themoviedb.org/3", cfg.TMDBAPIKey, cfg.TMDBLanguage)
+		enricher := tmdb.NewCache(tmdbClient, 24*time.Hour)
+
+		submitH := &consumer.SubmitHandler{
+			Store:     s,
+			Enricher:  enricher,
+			Radarr:    radarrFactory,
+			Sonarr:    sonarrFactory,
+			Events:    ev,
+			SecretKey: cfg.SecretKey,
+			Log:       logger.Named("submit"),
+		}
+		cancelH := &consumer.CancelHandler{
+			Store:     s,
+			Radarr:    radarrFactory,
+			Sonarr:    sonarrFactory,
+			Events:    ev,
+			SecretKey: cfg.SecretKey,
+			Log:       logger.Named("cancel"),
+		}
+
+		mux := server.New(&server.Deps{
+			Store:     s,
+			Enricher:  enricher,
+			Events:    ev,
+			Poll:      poller,
+			Submit:    submitH,
+			SecretKey: cfg.SecretKey,
+			WebFS:     web.FS(),
+		})
+		httpSrv.SetHandler(mux.Handler())
+
+		storePtr.Store(s)
+		eventsPtr.Store(ev)
+		submitPtr.Store(submitH)
+		cancelPtr.Store(cancelH)
+
+		snap := &pollCfgSnapshot{
+			staleAfterHours: cfg.StaleAfterHours,
+			secretKey:       cfg.SecretKey,
+		}
+		pollCfgPtr.Store(snap)
+
+		startPollLoop(time.Duration(cfg.PollIntervalSeconds) * time.Second)
+
+		if old := poolPtr.Swap(p); old != nil {
+			old.Close()
+		}
+		return nil
+	})
+
+	// lazySubmitter and lazyCanceller are thin wrappers that check the
+	// atomic pointers at call time, returning a no-op when not yet configured.
+	lazySubmit := &lazySubmitter{ptr: &submitPtr}
+	lazyCancel := &lazyCanceller{ptr: &cancelPtr}
+
+	dispatcher := consumer.New(lazySubmit, lazyCancel, logger.Named("consumer"))
+	eventSrv := consumer.NewEventServer(dispatcher)
+
+	scheduled := &poll.ScheduledServer{Poller: poller}
+
+	sdkruntime.Serve(sdkruntime.ServeConfig{
+		Logger: logger,
+		Servers: sdkruntime.CapabilityServers{
+			Runtime:       rt,
+			HttpRoutes:    httpSrv,
+			EventConsumer: eventSrv,
+			ScheduledTask: scheduled,
+		},
+	})
+}
+
+// lazySubmitter implements consumer.Submitter by checking the atomic pointer
+// at call time. Returns nil (no-op) if the pointer is not yet populated.
+type lazySubmitter struct {
+	ptr *atomic.Pointer[consumer.SubmitHandler]
+}
+
+func (l *lazySubmitter) HandleSubmitted(ctx context.Context, payload map[string]any) error {
+	h := l.ptr.Load()
+	if h == nil {
+		return nil
+	}
+	return h.HandleSubmitted(ctx, payload)
+}
+
+// lazyCanceller implements consumer.Canceller by checking the atomic pointer
+// at call time. Returns nil (no-op) if the pointer is not yet populated.
+type lazyCanceller struct {
+	ptr *atomic.Pointer[consumer.CancelHandler]
+}
+
+func (l *lazyCanceller) HandleCancelled(ctx context.Context, payload map[string]any) error {
+	h := l.ptr.Load()
+	if h == nil {
+		return nil
+	}
+	return h.HandleCancelled(ctx, payload)
+}
+
+func loadManifest() (*pluginv1.PluginManifest, error) {
+	manifest, err := publicmanifest.Load(manifestRaw)
+	if err != nil {
+		return nil, fmt.Errorf("load embedded manifest: %w", err)
+	}
+	executablePath, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("resolve executable path: %w", err)
+	}
+	binaryData, err := os.ReadFile(executablePath)
+	if err != nil {
+		return nil, fmt.Errorf("read executable %q: %w", executablePath, err)
+	}
+	checksum := sha256.Sum256(binaryData)
+	manifest.Checksum = hex.EncodeToString(checksum[:])
+	if len(manifest.GetSupportedPlatforms()) == 0 {
+		manifest.SupportedPlatforms = []*pluginv1.SupportedPlatform{
+			{Os: goruntime.GOOS, Arch: goruntime.GOARCH},
+		}
+	}
+	return manifest, nil
 }
