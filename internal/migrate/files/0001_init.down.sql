@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS request;
+DROP TABLE IF EXISTS registered_arr;
