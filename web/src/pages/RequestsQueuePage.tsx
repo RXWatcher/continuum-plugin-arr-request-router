@@ -1,3 +1,10 @@
+import RequestsQueue from "../components/RequestsQueue";
+
 export default function RequestsQueuePage() {
-  return <div className="p-8">Requests queue (stub — Task 10.10)</div>;
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Queue</h2>
+      <RequestsQueue />
+    </div>
+  );
 }

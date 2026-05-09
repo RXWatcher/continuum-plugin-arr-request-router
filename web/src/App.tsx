@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import Layout from "./components/Layout";
 import RegistryListPage from "./pages/RegistryListPage";
 import RegistryEditorPage from "./pages/RegistryEditorPage";
 import RequestsQueuePage from "./pages/RequestsQueuePage";
@@ -6,11 +7,13 @@ import RequestsQueuePage from "./pages/RequestsQueuePage";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<RegistryListPage />} />
-      <Route path="/registry/new" element={<RegistryEditorPage />} />
-      <Route path="/registry/:id" element={<RegistryEditorPage />} />
-      <Route path="/queue" element={<RequestsQueuePage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route element={<Layout />}>
+        <Route path="/" element={<RegistryListPage />} />
+        <Route path="/registry/new" element={<RegistryEditorPage />} />
+        <Route path="/registry/:id" element={<RegistryEditorPage />} />
+        <Route path="/queue" element={<RequestsQueuePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
     </Routes>
   );
 }
