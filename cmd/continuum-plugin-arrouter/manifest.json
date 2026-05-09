@@ -25,6 +25,12 @@
       "id": "admin",
       "display_name": "Arrouter Admin",
       "description": "Admin SPA for the arrouter plugin."
+    },
+    {
+      "type": "request_router.v1",
+      "id": "default",
+      "display_name": "Rule-based multi-arr router",
+      "description": "Routes requests to one of N registered Radarr/Sonarr instances based on rules."
     }
   ],
   "http_routes": [
