@@ -65,4 +65,7 @@ export const api = {
 
   reRouteRequest: (id: string) =>
     fetch(`${base}/requests/${id}/re-route`, { method: "POST" }).then(noContentOrThrow),
+
+  forceFailRequest: (id: string) =>
+    fetch(`${base}/requests/${id}/force-fail`, { method: "POST" }).then(noContentOrThrow),
 };

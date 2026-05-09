@@ -39,6 +39,7 @@ func (s *Server) requestsRoutes(r chi.Router) {
 	r.Get("/{id}", s.handleRequestsGet)
 	r.Post("/{id}/retry", s.handleRequestsRetry)
 	r.Post("/{id}/re-route", s.handleRequestsReRoute)
+	r.Post("/{id}/force-fail", s.handleRequestsForceFail)
 }
 
 func (s *Server) handleRequestsList(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +167,34 @@ func (s *Server) handleRequestsReRoute(w http.ResponseWriter, r *http.Request) {
 		PosterURL:        row.PosterURL,
 	}
 	if err := s.deps.Submit.Submit(r.Context(), ev); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// handleRequestsForceFail manually fails a row stuck in submitted/downloading.
+// Useful for orphaned rows whose registered *arr was deleted (routed_arr_id
+// became NULL via ON DELETE SET NULL, so the poll loop can't reach them).
+//
+// Returns 400 if the row is already terminal — there's nothing to fail.
+func (s *Server) handleRequestsForceFail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	row, err := s.deps.Store.GetRequest(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if row == nil {
+		http.Error(w, "not found", 404)
+		return
+	}
+	switch row.Status {
+	case "imported", "failed", "cancelled", "unrouted":
+		http.Error(w, "row is already terminal", 400)
+		return
+	}
+	if err := s.deps.Store.MarkFailed(r.Context(), id, "force-failed by admin"); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}

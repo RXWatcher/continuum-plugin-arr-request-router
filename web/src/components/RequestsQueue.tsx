@@ -91,6 +91,26 @@ export default function RequestsQueue() {
     }
   };
 
+  const forceFail = async (row: RequestRow) => {
+    if (
+      !window.confirm(
+        `Force-fail ${row.title}? This is for rows stuck after a registered *arr was deleted.`
+      )
+    )
+      return;
+    setBusy(row.id);
+    try {
+      await api.forceFailRequest(row.id);
+      showToast(`Force-failed ${row.title}`, true);
+      await reload();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      showToast(`Force-fail failed: ${msg}`, false);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const hasPrev = page > 1;
   const hasNext = page * LIMIT < total;
 
@@ -263,6 +283,16 @@ export default function RequestsQueue() {
                           className="px-2.5 py-1 rounded text-xs bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-border transition-colors disabled:opacity-50"
                         >
                           Re-route
+                        </button>
+                      )}
+                      {(row.status === "submitted" || row.status === "downloading") && (
+                        <button
+                          type="button"
+                          onClick={() => forceFail(row)}
+                          disabled={busy === row.id}
+                          className="text-sm text-red-400 hover:underline disabled:opacity-50"
+                        >
+                          Force fail
                         </button>
                       )}
                     </div>

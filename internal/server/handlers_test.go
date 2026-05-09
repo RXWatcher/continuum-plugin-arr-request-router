@@ -1095,6 +1095,173 @@ func TestReRouteMissingIDReturns404(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Force-fail endpoint tests
+// ---------------------------------------------------------------------------
+
+func TestForceFailSubmittedRowMarksFailed(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	r := &store.Request{
+		ID:        "req-forcefail-submitted",
+		TMDBID:    111,
+		MediaType: "movie",
+		Title:     "Stuck Movie",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.MarkSubmitted(t.Context(), r.ID, 42); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-forcefail-submitted/force-fail", nil))
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	row, err := st.GetRequest(t.Context(), r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if row.Status != "failed" {
+		t.Errorf("status=%q, want failed", row.Status)
+	}
+	if row.Error != "force-failed by admin" {
+		t.Errorf("error=%q, want 'force-failed by admin'", row.Error)
+	}
+}
+
+func TestForceFailDownloadingRowMarksFailed(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	r := &store.Request{
+		ID:        "req-forcefail-downloading",
+		TMDBID:    222,
+		MediaType: "movie",
+		Title:     "Downloading Movie",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.MarkSubmitted(t.Context(), r.ID, 43); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+	if _, err := st.MarkDownloading(t.Context(), r.ID); err != nil {
+		t.Fatalf("MarkDownloading: %v", err)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-forcefail-downloading/force-fail", nil))
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	row, err := st.GetRequest(t.Context(), r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if row.Status != "failed" {
+		t.Errorf("status=%q, want failed", row.Status)
+	}
+}
+
+func TestForceFailOrphanedRowMarksFailed(t *testing.T) {
+	// Simulate orphaned row: status=submitted, routed_arr_id=NULL (arr was deleted).
+	handler, st := newTestServerRouteTest(t)
+
+	// Insert an arr, link request to it, then delete the arr.
+	arrID, err := st.CreateArr(t.Context(), &store.RegisteredArr{
+		Name:      "arr-to-delete",
+		Kind:      "radarr",
+		URL:       "http://radarr",
+		APIKey:    sealTestKey(t, "k"),
+		Enabled:   true,
+		Priority:  1,
+		RulesJSON: []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateArr: %v", err)
+	}
+
+	r := &store.Request{
+		ID:        "req-forcefail-orphaned",
+		TMDBID:    333,
+		MediaType: "movie",
+		Title:     "Orphaned Movie",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.SetRoutedArr(t.Context(), r.ID, arrID, []byte(`{}`)); err != nil {
+		t.Fatalf("SetRoutedArr: %v", err)
+	}
+	if err := st.MarkSubmitted(t.Context(), r.ID, 55); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+	// Delete the arr — routed_arr_id becomes NULL via ON DELETE SET NULL.
+	if err := st.DeleteArr(t.Context(), arrID); err != nil {
+		t.Fatalf("DeleteArr: %v", err)
+	}
+
+	// Confirm orphaned state.
+	row, err := st.GetRequest(t.Context(), r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if row.RoutedArrID != nil {
+		t.Fatalf("expected routed_arr_id=NULL after arr delete, got %v", *row.RoutedArrID)
+	}
+	if row.Status != "submitted" {
+		t.Fatalf("expected status=submitted, got %s", row.Status)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-forcefail-orphaned/force-fail", nil))
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	row, err = st.GetRequest(t.Context(), r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if row.Status != "failed" {
+		t.Errorf("status=%q, want failed", row.Status)
+	}
+}
+
+func TestForceFailTerminalReturns400(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	r := &store.Request{
+		ID:        "req-forcefail-terminal",
+		TMDBID:    444,
+		MediaType: "movie",
+		Title:     "Already Done",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.MarkSubmitted(t.Context(), r.ID, 66); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+	if err := st.MarkImported(t.Context(), r.ID); err != nil {
+		t.Fatalf("MarkImported: %v", err)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-forcefail-terminal/force-fail", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestForceFailMissingReturns404(t *testing.T) {
+	handler, _ := newTestServerRouteTest(t)
+	w := do(handler, adminReq("POST", "/api/admin/requests/no-such-id/force-fail", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Prerender / theme-injection tests (Task 10.2)
 // ---------------------------------------------------------------------------
 
