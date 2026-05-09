@@ -2,15 +2,23 @@ package server_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"github.com/hashicorp/go-hclog"
+
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/arr"
 	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/auth"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/consumer"
 	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/crypto"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
 	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/server"
 	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
 )
@@ -523,6 +531,563 @@ func TestTestConnection502OnUpstream500(t *testing.T) {
 func TestTestConnectionMissingArrReturns404(t *testing.T) {
 	handler, _ := newTestServer(t)
 	w := do(handler, adminReq("POST", "/api/admin/registry/999999/test-connection", []byte(`{}`)))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for route-test + requests tests
+// ---------------------------------------------------------------------------
+
+// testEnricher satisfies routing.Enricher with no-op implementations.
+// routing.Enricher methods accept context.Context.
+type testEnricher struct{}
+
+func (testEnricher) Primary(_ context.Context, _ string, _ int) (*routing.TMDBPrimary, error) {
+	return nil, nil
+}
+func (testEnricher) Keywords(_ context.Context, _ string, _ int) ([]string, error) {
+	return nil, nil
+}
+func (testEnricher) ContentRating(_ context.Context, _ string, _ int) (string, error) {
+	return "", nil
+}
+
+// newTestServerFull builds a server with Enricher + SubmitHandler wired.
+// The SubmitHandler uses fakeArr as the radarr backend.
+func newTestServerFull(t *testing.T, fakeArrURL string) (http.Handler, *store.Store) {
+	t.Helper()
+	st := newTestStore(t)
+	sh := newSubmitHandler(t, st, fakeArrURL)
+	deps := &server.Deps{
+		Store:     st,
+		SecretKey: testSecretKey,
+		Enricher:  testEnricher{},
+		Submit:    sh,
+	}
+	return server.New(deps).Handler(), st
+}
+
+// newTestServerRouteTest builds a server with Enricher only (no Submit needed).
+func newTestServerRouteTest(t *testing.T) (http.Handler, *store.Store) {
+	t.Helper()
+	st := newTestStore(t)
+	deps := &server.Deps{
+		Store:     st,
+		SecretKey: testSecretKey,
+		Enricher:  testEnricher{},
+	}
+	return server.New(deps).Handler(), st
+}
+
+// newSubmitHandler creates a real consumer.SubmitHandler wired to the given store.
+// Each arr's URL is read from the store at dispatch time; fakeArrURL is
+// embedded in the arr row inserted by the caller.
+func newSubmitHandler(t *testing.T, st *store.Store, fakeArrURL string) *consumer.SubmitHandler {
+	t.Helper()
+	_ = fakeArrURL // URL is embedded in the registered_arr row, not here
+	return &consumer.SubmitHandler{
+		Store:     st,
+		Enricher:  testEnricher{},
+		Radarr:    arr.NewRadarr,
+		Sonarr:    arr.NewSonarr,
+		Events:    event.New(nil, hclog.NewNullLogger()),
+		SecretKey: testSecretKey,
+		Log:       hclog.NewNullLogger(),
+	}
+}
+
+// sealTestKey encrypts key using testSecretKey.
+func sealTestKey(t *testing.T, key string) string {
+	t.Helper()
+	s, err := crypto.Seal(testSecretKey, key)
+	if err != nil {
+		t.Fatalf("Seal: %v", err)
+	}
+	return s
+}
+
+// insertEnabledRadarr inserts an enabled radarr at the given URL with catch-all rules.
+func insertEnabledRadarr(t *testing.T, st *store.Store, name, url string) int64 {
+	t.Helper()
+	id, err := st.CreateArr(t.Context(), &store.RegisteredArr{
+		Name:      name,
+		Kind:      "radarr",
+		URL:       url,
+		APIKey:    sealTestKey(t, "test-key"),
+		Enabled:   true,
+		Priority:  1,
+		RulesJSON: []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateArr: %v", err)
+	}
+	return id
+}
+
+// fakeRadarrServer returns an httptest.Server that responds to the minimal
+// Radarr API surface used by SubmitHandler. postCount is incremented per POST.
+func fakeRadarrServer(t *testing.T, movieID int, postCount *atomic.Int32) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/rootfolder", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]map[string]any{{"id": 1, "path": "/movies"}})
+	})
+	mux.HandleFunc("/api/v3/qualityprofile", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]map[string]any{{"id": 1, "name": "HD"}})
+	})
+	mux.HandleFunc("/api/v3/movie", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if postCount != nil {
+			postCount.Add(1)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{"id": movieID, "title": "Test"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// ---------------------------------------------------------------------------
+// Route-test endpoint tests (Task 9.4)
+// ---------------------------------------------------------------------------
+
+func TestRouteTestReturnsChosenAndTrace(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	// Insert an enabled radarr with catch-all rules.
+	arrID := insertEnabledRadarr(t, st, "radarr-1", "http://radarr:7878")
+
+	body := mustJSON(t, map[string]any{
+		"tmdbId":    603,
+		"mediaType": "movie",
+		"title":     "The Matrix",
+		"year":      1999,
+	})
+	w := do(handler, adminReq("POST", "/api/admin/route-test", body))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	// chosen must be the arr ID.
+	chosen, ok := resp["chosen"]
+	if !ok {
+		t.Fatal("response missing 'chosen' field")
+	}
+	chosenF, ok := chosen.(float64)
+	if !ok || int64(chosenF) != arrID {
+		t.Errorf("chosen=%v, want %d", chosen, arrID)
+	}
+	// trace must be present.
+	if _, ok := resp["trace"]; !ok {
+		t.Error("response missing 'trace' field")
+	}
+}
+
+func TestRouteTestReturnsNullChosenWhenNoMatch(t *testing.T) {
+	handler, _ := newTestServerRouteTest(t)
+	// Empty registry → no candidates → chosen == null.
+	body := mustJSON(t, map[string]any{
+		"tmdbId":    603,
+		"mediaType": "movie",
+	})
+	w := do(handler, adminReq("POST", "/api/admin/route-test", body))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp["chosen"] != nil {
+		t.Errorf("chosen=%v, want null", resp["chosen"])
+	}
+	trace, ok := resp["trace"].(map[string]any)
+	if !ok {
+		t.Fatal("trace is not an object")
+	}
+	cands, ok := trace["candidates"]
+	if !ok {
+		t.Fatal("trace missing candidates")
+	}
+	if cands != nil {
+		// candidates may be nil/null or an empty array — both acceptable.
+		arr, ok := cands.([]any)
+		if ok && len(arr) != 0 {
+			t.Errorf("candidates=%v, want empty", cands)
+		}
+	}
+}
+
+func TestRouteTestRequiresValidMediaType(t *testing.T) {
+	handler, _ := newTestServerRouteTest(t)
+	body := mustJSON(t, map[string]any{
+		"tmdbId":    603,
+		"mediaType": "podcast",
+	})
+	w := do(handler, adminReq("POST", "/api/admin/route-test", body))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestRouteTestRequiresTMDBID(t *testing.T) {
+	handler, _ := newTestServerRouteTest(t)
+	body := mustJSON(t, map[string]any{
+		"mediaType": "movie",
+	})
+	w := do(handler, adminReq("POST", "/api/admin/route-test", body))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestRouteTestDoesNotWriteToDB(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+	insertEnabledRadarr(t, st, "radarr-ro", "http://radarr:7878")
+
+	body := mustJSON(t, map[string]any{
+		"tmdbId":    999,
+		"mediaType": "movie",
+		"title":     "Read-only test",
+	})
+	w := do(handler, adminReq("POST", "/api/admin/route-test", body))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	// No rows should exist in the request table.
+	rows, total, err := st.ListRequestsForAdmin(t.Context(), "", 100, 0)
+	if err != nil {
+		t.Fatalf("ListRequestsForAdmin: %v", err)
+	}
+	if total != 0 || len(rows) != 0 {
+		t.Errorf("route-test wrote %d row(s) to DB, expected 0", total)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Requests list/detail tests (Task 9.5)
+// ---------------------------------------------------------------------------
+
+func TestRequestsListPaginatesAndFilters(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	// Insert 5 requests: 3 queued + 2 failed.
+	for i := 0; i < 3; i++ {
+		r := &store.Request{
+			ID:        fmt.Sprintf("req-list-queued-%d", i),
+			TMDBID:    1000 + i,
+			MediaType: "movie",
+			Title:     "Movie",
+			Status:    "queued",
+		}
+		if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+			t.Fatalf("UpsertRequestQueued: %v", err)
+		}
+	}
+	for i := 0; i < 2; i++ {
+		id := fmt.Sprintf("req-list-failed-%d", i)
+		r := &store.Request{
+			ID:        id,
+			TMDBID:    2000 + i,
+			MediaType: "movie",
+			Title:     "Movie",
+			Status:    "queued",
+		}
+		if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+			t.Fatalf("UpsertRequestQueued: %v", err)
+		}
+		if err := st.MarkFailed(t.Context(), id, "err"); err != nil {
+			t.Fatalf("MarkFailed: %v", err)
+		}
+	}
+
+	// Filter to failed only.
+	w := do(handler, adminReq("GET", "/api/admin/requests/?status=failed&limit=10", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	total := int(resp["total"].(float64))
+	if total != 2 {
+		t.Errorf("total=%d, want 2", total)
+	}
+	rowsRaw := resp["rows"].([]any)
+	if len(rowsRaw) != 2 {
+		t.Errorf("rows count=%d, want 2", len(rowsRaw))
+	}
+	for _, row := range rowsRaw {
+		m := row.(map[string]any)
+		if m["status"] != "failed" {
+			t.Errorf("unexpected status %q in filtered results", m["status"])
+		}
+	}
+}
+
+func TestRequestsListIncludesRoutedArrName(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	// Insert an arr.
+	arrID, err := st.CreateArr(t.Context(), &store.RegisteredArr{
+		Name:      "my-radarr",
+		Kind:      "radarr",
+		URL:       "http://radarr",
+		APIKey:    sealTestKey(t, "k"),
+		Enabled:   true,
+		Priority:  1,
+		RulesJSON: []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateArr: %v", err)
+	}
+
+	r := &store.Request{
+		ID:        "req-arrname-test",
+		TMDBID:    1001,
+		MediaType: "movie",
+		Title:     "Movie",
+		Status:    "queued",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.SetRoutedArr(t.Context(), r.ID, arrID, []byte(`{}`)); err != nil {
+		t.Fatalf("SetRoutedArr: %v", err)
+	}
+
+	w := do(handler, adminReq("GET", "/api/admin/requests/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rows := resp["rows"].([]any)
+	if len(rows) == 0 {
+		t.Fatal("expected at least one row")
+	}
+	row := rows[0].(map[string]any)
+	if row["routed_arr_name"] != "my-radarr" {
+		t.Errorf("routed_arr_name=%v, want my-radarr", row["routed_arr_name"])
+	}
+}
+
+func TestRequestsGetReturnsTraceAndDetails(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	r := &store.Request{
+		ID:        "req-get-trace",
+		TMDBID:    5050,
+		MediaType: "movie",
+		Title:     "Traced Movie",
+		Status:    "queued",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	trace := []byte(`{"candidates":[],"chosen_arr_id":null}`)
+	if err := st.MarkUnrouted(t.Context(), r.ID, trace, "no match"); err != nil {
+		t.Fatalf("MarkUnrouted: %v", err)
+	}
+
+	w := do(handler, adminReq("GET", "/api/admin/requests/req-get-trace", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	var dto map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &dto); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if dto["id"] != "req-get-trace" {
+		t.Errorf("id=%v, want req-get-trace", dto["id"])
+	}
+	if dto["match_trace"] == nil {
+		t.Error("match_trace is null, expected non-empty")
+	}
+}
+
+func TestRequestsGetMissingReturns404(t *testing.T) {
+	handler, _ := newTestServerRouteTest(t)
+	w := do(handler, adminReq("GET", "/api/admin/requests/does-not-exist", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Retry endpoint tests (Task 9.5)
+// ---------------------------------------------------------------------------
+
+func TestRetryFailedRowResubmits(t *testing.T) {
+	var postCount atomic.Int32
+	fakeArr := fakeRadarrServer(t, 77, &postCount)
+
+	handler, st := newTestServerFull(t, fakeArr.URL)
+
+	// Insert a radarr at the fake URL.
+	arrID := insertEnabledRadarr(t, st, "radarr-retry", fakeArr.URL)
+	_ = arrID
+
+	// Insert + fail a request.
+	r := &store.Request{
+		ID:        "req-retry-test",
+		TMDBID:    603,
+		MediaType: "movie",
+		Title:     "Matrix",
+		Year:      1999,
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.MarkFailed(t.Context(), r.ID, "network error"); err != nil {
+		t.Fatalf("MarkFailed: %v", err)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-retry-test/retry", nil))
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	// The fake arr should have received the POST.
+	if postCount.Load() < 1 {
+		t.Errorf("fake arr not called (postCount=%d)", postCount.Load())
+	}
+
+	// Row should now be submitted (or still queued if there was a race, but
+	// since this is synchronous, it should be submitted).
+	row, err := st.GetRequest(t.Context(), r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if row.Status != "submitted" {
+		t.Errorf("status=%q, want submitted", row.Status)
+	}
+}
+
+func TestRetryNonFailedReturns400(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	r := &store.Request{
+		ID:        "req-retry-nonfailed",
+		TMDBID:    100,
+		MediaType: "movie",
+		Title:     "Movie",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.MarkSubmitted(t.Context(), r.ID, 5); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-retry-nonfailed/retry", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestRetryMissingIDReturns404(t *testing.T) {
+	handler, _ := newTestServerRouteTest(t)
+	w := do(handler, adminReq("POST", "/api/admin/requests/does-not-exist/retry", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Re-route endpoint tests (Task 9.5)
+// ---------------------------------------------------------------------------
+
+func TestReRouteUnroutedRowReRunsRouting(t *testing.T) {
+	var postCount atomic.Int32
+	fakeArr := fakeRadarrServer(t, 88, &postCount)
+
+	handler, st := newTestServerFull(t, fakeArr.URL)
+
+	// The new arr added during re-route attempt.
+	arrID := insertEnabledRadarr(t, st, "radarr-reroute", fakeArr.URL)
+	_ = arrID
+
+	// Insert + unroute a request (originally had no arr to match).
+	r := &store.Request{
+		ID:        "req-reroute-test",
+		TMDBID:    9000,
+		MediaType: "movie",
+		Title:     "To Re-Route",
+		Year:      2020,
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.MarkUnrouted(t.Context(), r.ID, []byte(`{"candidates":[]}`), "no arr"); err != nil {
+		t.Fatalf("MarkUnrouted: %v", err)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-reroute-test/re-route", nil))
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d body=%s", w.Code, w.Body.String())
+	}
+
+	// Fake arr should have been called.
+	if postCount.Load() < 1 {
+		t.Errorf("fake arr not called (postCount=%d)", postCount.Load())
+	}
+
+	row, err := st.GetRequest(t.Context(), r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if row.Status != "submitted" {
+		t.Errorf("status=%q, want submitted", row.Status)
+	}
+}
+
+func TestReRouteNonUnroutedReturns400(t *testing.T) {
+	handler, st := newTestServerRouteTest(t)
+
+	r := &store.Request{
+		ID:        "req-reroute-nonunrouted",
+		TMDBID:    200,
+		MediaType: "movie",
+		Title:     "Movie",
+	}
+	if err := st.UpsertRequestQueued(t.Context(), r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := st.MarkSubmitted(t.Context(), r.ID, 9); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+
+	w := do(handler, adminReq("POST", "/api/admin/requests/req-reroute-nonunrouted/re-route", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestReRouteMissingIDReturns404(t *testing.T) {
+	handler, _ := newTestServerRouteTest(t)
+	w := do(handler, adminReq("POST", "/api/admin/requests/ghost-id/re-route", nil))
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", w.Code)
 	}

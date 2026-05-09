@@ -295,6 +295,40 @@ LIMIT $2 OFFSET $3`
 	return scanRequestsWithTotal(pgxRows)
 }
 
+// MarkRetrying transitions a 'failed' row back to 'queued', clearing the
+// per-attempt fields. No-op on rows in any other state. Used by the admin
+// retry endpoint.
+func (s *Store) MarkRetrying(ctx context.Context, id string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE request
+		SET status='queued', error=NULL, completed_at=NULL,
+		    submitted_at=NULL, last_polled_at=NULL,
+		    external_id=NULL, match_trace=NULL,
+		    updated_at=now()
+		WHERE id=$1 AND status='failed'
+	`, id)
+	if err != nil {
+		return fmt.Errorf("store.MarkRetrying: %w", err)
+	}
+	return nil
+}
+
+// MarkReRouting transitions an 'unrouted' row back to 'queued'. Same
+// shape as MarkRetrying but source state differs.
+func (s *Store) MarkReRouting(ctx context.Context, id string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE request
+		SET status='queued', error=NULL, completed_at=NULL,
+		    match_trace=NULL,
+		    updated_at=now()
+		WHERE id=$1 AND status='unrouted'
+	`, id)
+	if err != nil {
+		return fmt.Errorf("store.MarkReRouting: %w", err)
+	}
+	return nil
+}
+
 // scanRequests drains a pgx.Rows cursor into a slice of *Request.
 func scanRequests(rows pgx.Rows) ([]*Request, error) {
 	var result []*Request

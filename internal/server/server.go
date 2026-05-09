@@ -49,8 +49,8 @@ func (s *Server) Handler() http.Handler {
 	r.Route("/api/admin", func(r chi.Router) {
 		r.Use(requireAdmin)
 		r.Route("/registry", s.registryRoutes)
-		// Task 9.4 will add /route-test here.
-		// Task 9.5 will add /requests/* here.
+		r.Post("/route-test", s.handleRouteTest)
+		r.Route("/requests", s.requestsRoutes)
 	})
 
 	// Task 10.2 will replace this with a theme-injecting prerender.

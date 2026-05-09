@@ -653,6 +653,158 @@ func TestMarkUnroutedIsNoOpFromNonQueued(t *testing.T) {
 	}
 }
 
+// TestMarkRetryingFromFailedTransitionsToQueued verifies that MarkRetrying
+// transitions a 'failed' row back to 'queued', clearing error, completed_at,
+// submitted_at, external_id, and match_trace.
+func TestMarkRetryingFromFailedTransitionsToQueued(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	r := sampleRequest("req-mark-retrying-from-failed")
+	if err := s.UpsertRequestQueued(ctx, r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := s.MarkSubmitted(ctx, r.ID, 42); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+	if err := s.MarkFailed(ctx, r.ID, "network error"); err != nil {
+		t.Fatalf("MarkFailed: %v", err)
+	}
+
+	// Confirm we're in failed state before retry.
+	before, _ := s.GetRequest(ctx, r.ID)
+	if before.Status != "failed" {
+		t.Fatalf("pre-condition: status=%q, want failed", before.Status)
+	}
+
+	if err := s.MarkRetrying(ctx, r.ID); err != nil {
+		t.Fatalf("MarkRetrying: %v", err)
+	}
+
+	got, err := s.GetRequest(ctx, r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if got.Status != "queued" {
+		t.Errorf("Status: got %q, want queued", got.Status)
+	}
+	if got.Error != "" {
+		t.Errorf("Error: got %q, want empty", got.Error)
+	}
+	if got.CompletedAt != nil {
+		t.Errorf("CompletedAt: got %v, want nil", got.CompletedAt)
+	}
+	if got.SubmittedAt != nil {
+		t.Errorf("SubmittedAt: got %v, want nil", got.SubmittedAt)
+	}
+	if got.ExternalID != nil {
+		t.Errorf("ExternalID: got %v, want nil", got.ExternalID)
+	}
+	if len(got.MatchTrace) != 0 {
+		t.Errorf("MatchTrace: got %s, want nil/empty", got.MatchTrace)
+	}
+}
+
+// TestMarkRetryingFromOtherStateIsNoOp verifies that MarkRetrying on a
+// non-failed row is a silent no-op (row status unchanged).
+func TestMarkRetryingFromOtherStateIsNoOp(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	r := sampleRequest("req-mark-retrying-noop")
+	if err := s.UpsertRequestQueued(ctx, r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := s.MarkSubmitted(ctx, r.ID, 7); err != nil {
+		t.Fatalf("MarkSubmitted: %v", err)
+	}
+
+	// Row is now 'submitted'; MarkRetrying should be a no-op.
+	if err := s.MarkRetrying(ctx, r.ID); err != nil {
+		t.Fatalf("MarkRetrying on submitted: %v", err)
+	}
+
+	got, err := s.GetRequest(ctx, r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if got.Status != "submitted" {
+		t.Errorf("Status: got %q, want submitted (must be no-op)", got.Status)
+	}
+}
+
+// TestMarkReRoutingFromUnroutedTransitionsToQueued verifies that MarkReRouting
+// transitions an 'unrouted' row back to 'queued', clearing error, completed_at,
+// and match_trace.
+func TestMarkReRoutingFromUnroutedTransitionsToQueued(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	r := sampleRequest("req-mark-rerouting-from-unrouted")
+	if err := s.UpsertRequestQueued(ctx, r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+
+	trace := []byte(`{"candidates":[]}`)
+	if err := s.MarkUnrouted(ctx, r.ID, trace, "no match"); err != nil {
+		t.Fatalf("MarkUnrouted: %v", err)
+	}
+
+	before, _ := s.GetRequest(ctx, r.ID)
+	if before.Status != "unrouted" {
+		t.Fatalf("pre-condition: status=%q, want unrouted", before.Status)
+	}
+
+	if err := s.MarkReRouting(ctx, r.ID); err != nil {
+		t.Fatalf("MarkReRouting: %v", err)
+	}
+
+	got, err := s.GetRequest(ctx, r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if got.Status != "queued" {
+		t.Errorf("Status: got %q, want queued", got.Status)
+	}
+	if got.Error != "" {
+		t.Errorf("Error: got %q, want empty", got.Error)
+	}
+	if got.CompletedAt != nil {
+		t.Errorf("CompletedAt: got %v, want nil", got.CompletedAt)
+	}
+	if len(got.MatchTrace) != 0 {
+		t.Errorf("MatchTrace: got %s, want nil/empty", got.MatchTrace)
+	}
+}
+
+// TestMarkReRoutingFromOtherStateIsNoOp verifies that MarkReRouting on a
+// non-unrouted row is a silent no-op (row status unchanged).
+func TestMarkReRoutingFromOtherStateIsNoOp(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	r := sampleRequest("req-mark-rerouting-noop")
+	if err := s.UpsertRequestQueued(ctx, r); err != nil {
+		t.Fatalf("UpsertRequestQueued: %v", err)
+	}
+	if err := s.MarkFailed(ctx, r.ID, "pre-existing failure"); err != nil {
+		t.Fatalf("MarkFailed: %v", err)
+	}
+
+	// Row is now 'failed'; MarkReRouting should be a no-op.
+	if err := s.MarkReRouting(ctx, r.ID); err != nil {
+		t.Fatalf("MarkReRouting on failed: %v", err)
+	}
+
+	got, err := s.GetRequest(ctx, r.ID)
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if got.Status != "failed" {
+		t.Errorf("Status: got %q, want failed (must be no-op)", got.Status)
+	}
+}
+
 // jsonEqual normalises two JSON byte slices by unmarshalling them into
 // interface{} and re-marshalling before comparing, so key ordering differences
 // introduced by Postgres JSONB storage do not cause false failures.
