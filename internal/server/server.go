@@ -53,10 +53,8 @@ func (s *Server) Handler() http.Handler {
 		r.Route("/requests", s.requestsRoutes)
 	})
 
-	// Task 10.2 will replace this with a theme-injecting prerender.
-	r.Get("/admin/*", func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "spa not yet wired", http.StatusNotImplemented)
-	})
+	r.Get("/admin", s.handleSPA)
+	r.Get("/admin/*", s.handleSPA)
 	if s.deps.WebFS != nil {
 		r.Get("/assets/*", http.FileServer(s.deps.WebFS).ServeHTTP)
 	}

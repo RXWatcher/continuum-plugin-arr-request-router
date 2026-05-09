@@ -1,0 +1,65 @@
+package server
+
+import (
+	"bytes"
+	"io"
+	"net/http"
+	"regexp"
+	"strings"
+)
+
+// htmlTagRE matches the opening <html> tag (with or without existing
+// attributes), case-insensitive.
+//
+// CONSTRAINT: This regex replaces the WHOLE <html ...> tag, so any existing
+// attributes (e.g. lang="en") are lost in the rewrite. The SPA scaffold's
+// index.html deliberately avoids attributes other than the injected data-theme,
+// so this is acceptable. If index.html is ever updated to include lang= or
+// class= attributes, this handler must be updated to preserve them (e.g. by
+// using a capture-and-append approach instead of a full replacement).
+var htmlTagRE = regexp.MustCompile(`(?i)<html(\s[^>]*)?>`)
+
+// handleSPA serves index.html with `data-theme="<theme>"` injected onto
+// the <html> element. The theme is read from the X-Continuum-Theme header
+// (preferred — continuum's plugin proxy injects it) or from the ?theme=…
+// query string (fallback — the sidebar appends it on direct navigation).
+// Falls back to "default" if neither is present.
+//
+// Cache-Control: no-store — the theme varies per request.
+func (s *Server) handleSPA(w http.ResponseWriter, r *http.Request) {
+	if s.deps.WebFS == nil {
+		http.Error(w, "spa not embedded", http.StatusInternalServerError)
+		return
+	}
+	f, err := s.deps.WebFS.Open("/index.html")
+	if err != nil {
+		// Some http.FileSystem implementations expect "index.html" without slash.
+		f, err = s.deps.WebFS.Open("index.html")
+	}
+	if err != nil {
+		http.Error(w, "spa missing", http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+
+	raw, err := io.ReadAll(f)
+	if err != nil {
+		http.Error(w, "spa read", http.StatusInternalServerError)
+		return
+	}
+
+	theme := r.Header.Get("X-Continuum-Theme")
+	if theme == "" {
+		theme = r.URL.Query().Get("theme")
+	}
+	if theme == "" {
+		theme = "default"
+	}
+	safeTheme := strings.ReplaceAll(theme, `"`, "&quot;")
+
+	out := htmlTagRE.ReplaceAll(raw, []byte(`<html data-theme="`+safeTheme+`">`))
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write(bytes.TrimSpace(out))
+}

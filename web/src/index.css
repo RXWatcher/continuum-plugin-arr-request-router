@@ -1,0 +1,635 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Continuum theme tokens — copied verbatim from continuum/web/src/app.css.
+   The default `:root` block is midnight-cinema (continuum's default).
+   The plugin's main.tsx sets html[data-theme=...] from a ?theme=... URL
+   parameter so the appropriate block applies at runtime. */
+
+:root {
+  --radius: 0.75rem;
+  --font-body: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+
+  /* Surfaces: near-black with subtle cool undertone */
+  --background: #141417;
+  --foreground: #e8e8ec;
+  --card: #1c1c20;
+  --card-foreground: #e8e8ec;
+  --popover: #18181c;
+  --popover-foreground: #e8e8ec;
+
+  /* Primary: white — for play buttons, key CTAs, active indicators */
+  --primary: #e8e8ec;
+  --primary-foreground: #141417;
+
+  /* Secondary & Muted: subtle surface variations */
+  --secondary: #232328;
+  --secondary-foreground: #d0d0d6;
+  --muted: #1c1c20;
+  --muted-foreground: #6e6e78;
+  --accent: #232328;
+  --accent-foreground: #e8e8ec;
+
+  /* Destructive: warm red for danger actions */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  /* Borders: barely visible, just enough structure */
+  --border: #28282e;
+  --input: #1c1c20;
+  --ring: #e8e8ec;
+
+  /* Charts: desaturated pastels that fit the cinema aesthetic */
+  --chart-1: #8b9cf7;
+  --chart-2: #7ec8e3;
+  --chart-3: #81c995;
+  --chart-4: #e8a87c;
+  --chart-5: #c78dbd;
+
+  /* Sidebar: darkest surface, creating depth */
+  --sidebar: #0f0f12;
+  --sidebar-foreground: #e8e8ec;
+  --sidebar-primary: #e8e8ec;
+  --sidebar-primary-foreground: #0f0f12;
+  --sidebar-accent: #1c1c20;
+  --sidebar-accent-foreground: #e8e8ec;
+  --sidebar-border: #232328;
+  --sidebar-section-divider: #2e2e35;
+  --sidebar-ring: #e8e8ec;
+
+  /* Surfaces: layered depth */
+  --surface: #1c1c20;
+  --surface-hover: #232328;
+  --surface-raised: #28282e;
+  --ambient: #e8e8ec;
+  --ambient-glow-opacity: 0.08;
+}
+
+[data-theme="midnight-cinema"] {
+  --radius: 0.75rem;
+  --font-body: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+
+  /* Surfaces: near-black with subtle cool undertone */
+  --background: #141417;
+  --foreground: #e8e8ec;
+  --card: #1c1c20;
+  --card-foreground: #e8e8ec;
+  --popover: #18181c;
+  --popover-foreground: #e8e8ec;
+
+  /* Primary: white — for play buttons, key CTAs, active indicators */
+  --primary: #e8e8ec;
+  --primary-foreground: #141417;
+
+  /* Secondary & Muted: subtle surface variations */
+  --secondary: #232328;
+  --secondary-foreground: #d0d0d6;
+  --muted: #1c1c20;
+  --muted-foreground: #6e6e78;
+  --accent: #232328;
+  --accent-foreground: #e8e8ec;
+
+  /* Destructive: warm red for danger actions */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  /* Borders: barely visible, just enough structure */
+  --border: #28282e;
+  --input: #1c1c20;
+  --ring: #e8e8ec;
+
+  /* Charts: desaturated pastels that fit the cinema aesthetic */
+  --chart-1: #8b9cf7;
+  --chart-2: #7ec8e3;
+  --chart-3: #81c995;
+  --chart-4: #e8a87c;
+  --chart-5: #c78dbd;
+
+  /* Sidebar: darkest surface, creating depth */
+  --sidebar: #0f0f12;
+  --sidebar-foreground: #e8e8ec;
+  --sidebar-primary: #e8e8ec;
+  --sidebar-primary-foreground: #0f0f12;
+  --sidebar-accent: #1c1c20;
+  --sidebar-accent-foreground: #e8e8ec;
+  --sidebar-border: #232328;
+  --sidebar-section-divider: #2e2e35;
+  --sidebar-ring: #e8e8ec;
+
+  /* Surfaces: layered depth */
+  --surface: #1c1c20;
+  --surface-hover: #232328;
+  --surface-raised: #28282e;
+  --ambient: #e8e8ec;
+  --ambient-glow-opacity: 0.08;
+}
+
+[data-theme="cinema-light"] {
+  --radius: 0.75rem;
+  --font-body: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+
+  /* Surfaces: warm off-white with cool undertone */
+  --background: #f4f4f6;
+  --foreground: #1a1a1e;
+  --card: #ffffff;
+  --card-foreground: #1a1a1e;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1e;
+
+  /* Primary: near-black — inverted from Cinema Dark */
+  --primary: #1a1a1e;
+  --primary-foreground: #f4f4f6;
+
+  /* Secondary & Muted: subtle surface variations */
+  --secondary: #e8e8ec;
+  --secondary-foreground: #3a3a42;
+  --muted: #ebebef;
+  --muted-foreground: #78787f;
+  --accent: #e8e8ec;
+  --accent-foreground: #1a1a1e;
+
+  /* Destructive: warm red for danger actions */
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  /* Borders: soft gray, enough structure without weight */
+  --border: #d8d8de;
+  --input: #e8e8ec;
+  --ring: #1a1a1e;
+
+  /* Charts: richer tones for light backgrounds */
+  --chart-1: #6366f1;
+  --chart-2: #0ea5e9;
+  --chart-3: #22c55e;
+  --chart-4: #f59e0b;
+  --chart-5: #a855f7;
+
+  /* Sidebar: slightly darker than background for depth */
+  --sidebar: #eaeaee;
+  --sidebar-foreground: #1a1a1e;
+  --sidebar-primary: #1a1a1e;
+  --sidebar-primary-foreground: #f4f4f6;
+  --sidebar-accent: #dfdfe5;
+  --sidebar-accent-foreground: #1a1a1e;
+  --sidebar-border: #d0d0d8;
+  --sidebar-section-divider: #c2c2cc;
+  --sidebar-ring: #1a1a1e;
+
+  /* Surfaces: layered depth */
+  --surface: #ebebef;
+  --surface-hover: #e0e0e6;
+  --surface-raised: #ffffff;
+  --ambient: #1a1a1e;
+  --ambient-glow-opacity: 0.05;
+
+  /* Hero: light-mode overrides */
+  --hero-backdrop-brightness: 1.15;
+  --hero-backdrop-saturate: 0.6;
+  --hero-text-shadow: 0 1px 3px rgb(255 255 255 / 60%);
+}
+
+[data-theme="cobalt-studio"] {
+  --radius: 0.75rem;
+  --font-body: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --background: #101722;
+  --foreground: #f4f8ff;
+  --card: #151e2b;
+  --card-foreground: #f4f8ff;
+  --popover: #121a25;
+  --popover-foreground: #f4f8ff;
+  --primary: #78aefc;
+  --primary-foreground: #0f1722;
+  --secondary: #1b2634;
+  --secondary-foreground: #d7e2f1;
+  --muted: #151e2b;
+  --muted-foreground: #90a0b5;
+  --accent: #203043;
+  --accent-foreground: #f4f8ff;
+  --destructive: #ef6b73;
+  --destructive-foreground: #ffffff;
+  --border: #28384d;
+  --input: #182231;
+  --ring: #78aefc;
+  --chart-1: #78aefc;
+  --chart-2: #87d2ff;
+  --chart-3: #6ec7ba;
+  --chart-4: #b9c7ff;
+  --chart-5: #f18d8d;
+  --sidebar: #0c131d;
+  --sidebar-foreground: #f4f8ff;
+  --sidebar-primary: #78aefc;
+  --sidebar-primary-foreground: #0f1722;
+  --sidebar-accent: #172231;
+  --sidebar-accent-foreground: #f4f8ff;
+  --sidebar-border: #1f2a39;
+  --sidebar-section-divider: #283a4e;
+  --sidebar-ring: #78aefc;
+  --surface: #151e2b;
+  --surface-hover: #1d2a3b;
+  --surface-raised: #223245;
+  --ambient: #78aefc;
+  --ambient-glow-opacity: 0.11;
+}
+
+[data-theme="oxblood-noir"] {
+  --radius: 0.75rem;
+  --font-body: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --background: #171113;
+  --foreground: #f8f2f3;
+  --card: #20181b;
+  --card-foreground: #f8f2f3;
+  --popover: #1b1417;
+  --popover-foreground: #f8f2f3;
+  --primary: #d16a78;
+  --primary-foreground: #180f12;
+  --secondary: #281d21;
+  --secondary-foreground: #decfd2;
+  --muted: #20181b;
+  --muted-foreground: #a28e95;
+  --accent: #322228;
+  --accent-foreground: #f8f2f3;
+  --destructive: #f08080;
+  --destructive-foreground: #ffffff;
+  --border: #3b2830;
+  --input: #251a1f;
+  --ring: #d16a78;
+  --chart-1: #d16a78;
+  --chart-2: #f08e7a;
+  --chart-3: #c8a0b8;
+  --chart-4: #8aa0c6;
+  --chart-5: #e1b86e;
+  --sidebar: #120d0f;
+  --sidebar-foreground: #f8f2f3;
+  --sidebar-primary: #d16a78;
+  --sidebar-primary-foreground: #180f12;
+  --sidebar-accent: #21161a;
+  --sidebar-accent-foreground: #f8f2f3;
+  --sidebar-border: #2c1d23;
+  --sidebar-section-divider: #3a252e;
+  --sidebar-ring: #d16a78;
+  --surface: #20181b;
+  --surface-hover: #2a2025;
+  --surface-raised: #34262c;
+  --ambient: #d16a78;
+  --ambient-glow-opacity: 0.11;
+}
+
+[data-theme="evergreen-studio"] {
+  --radius: 0.75rem;
+  --font-body: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --background: #101715;
+  --foreground: #f2f8f5;
+  --card: #16201d;
+  --card-foreground: #f2f8f5;
+  --popover: #131b19;
+  --popover-foreground: #f2f8f5;
+  --primary: #5bc39d;
+  --primary-foreground: #0d1513;
+  --secondary: #1b2824;
+  --secondary-foreground: #d1e0d9;
+  --muted: #16201d;
+  --muted-foreground: #91a39c;
+  --accent: #20322d;
+  --accent-foreground: #f2f8f5;
+  --destructive: #f07a7a;
+  --destructive-foreground: #ffffff;
+  --border: #284038;
+  --input: #182420;
+  --ring: #5bc39d;
+  --chart-1: #5bc39d;
+  --chart-2: #7dd8bd;
+  --chart-3: #7eb7a4;
+  --chart-4: #88a9cf;
+  --chart-5: #e0b66b;
+  --sidebar: #0c1210;
+  --sidebar-foreground: #f2f8f5;
+  --sidebar-primary: #5bc39d;
+  --sidebar-primary-foreground: #0d1513;
+  --sidebar-accent: #16221e;
+  --sidebar-accent-foreground: #f2f8f5;
+  --sidebar-border: #1d2f2a;
+  --sidebar-section-divider: #253d35;
+  --sidebar-ring: #5bc39d;
+  --surface: #16201d;
+  --surface-hover: #1e2b27;
+  --surface-raised: #263732;
+  --ambient: #5bc39d;
+  --ambient-glow-opacity: 0.1;
+}
+
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+/* ================================================================
+   Continuum design tokens (ported from continuum/web/src/app.css)
+   ================================================================
+   Continuum uses Tailwind v4 @theme inline for these tokens.
+   This plugin uses Tailwind v3, so they are plain CSS custom
+   properties on :root instead.
+   ================================================================ */
+
+:root {
+  /* ── Border Radius ───────────────────────────────────────── */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-pill: 9999px;
+
+  /* ── Shadows (dark-UI optimized) ─────────────────────────── */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+
+  /* ── Motion: Duration ──────────────────────────────────────── */
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-glacial: 700ms;
+  --duration-cinematic: 1200ms;
+  --duration-drift: 2000ms;
+
+  /* ── Motion: Easing ────────────────────────────────────────── */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-gentle: cubic-bezier(0.25, 0, 0.35, 1);
+
+  /* ── Ken-Burns Animation Variables ────────────────────────── */
+  --animate-ken-burns-a: ken-burns-a 14s linear infinite;
+  --animate-ken-burns-b: ken-burns-b 18s linear infinite;
+
+  /* ── Hero Backdrop Defaults ─────────────────────────────────── */
+  --hero-backdrop-brightness: 0.75;
+  --hero-backdrop-saturate: 0.9;
+  --hero-text-shadow: 0 18px 50px rgb(0 0 0 / 45%);
+}
+
+/* ── Keyframes ──────────────────────────────────────────────── */
+
+@keyframes ken-burns-a {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.06) translate(-0.5%, -0.3%);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+@keyframes ken-burns-b {
+  0% {
+    transform: scale(1.04) translate(0.3%, 0);
+  }
+  50% {
+    transform: scale(1) translate(-0.3%, 0.2%);
+  }
+  100% {
+    transform: scale(1.04) translate(0.3%, 0);
+  }
+}
+
+/* ── Accessibility: reduced motion ──────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+    --duration-cinematic: 0ms;
+    --duration-drift: 0ms;
+    --duration-glacial: 0ms;
+    --duration-slow: 150ms;
+    --animate-ken-burns-a: none;
+    --animate-ken-burns-b: none;
+  }
+  .ambient-glow {
+    transition: none;
+  }
+}
+
+/* ── Hero Gradient Classes ───────────────────────────────────── */
+
+.hero-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    var(--background) 0%,
+    color-mix(in srgb, var(--background) 92%, transparent) 20%,
+    color-mix(in srgb, var(--background) 55%, transparent) 50%,
+    color-mix(in srgb, var(--background) 20%, transparent) 75%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.hero-gradient-left {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    var(--background) 0%,
+    color-mix(in srgb, var(--background) 80%, transparent) 20%,
+    color-mix(in srgb, var(--background) 40%, transparent) 40%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.hero-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--background) 92%, transparent) 0%,
+      color-mix(in srgb, var(--background) 64%, transparent) 28%,
+      transparent 58%
+    ),
+    linear-gradient(
+      to top,
+      var(--background) 0%,
+      color-mix(in srgb, var(--background) 75%, transparent) 28%,
+      transparent 62%
+    );
+  pointer-events: none;
+}
+
+/* ── Ambient Glow ────────────────────────────────────────────── */
+
+.ambient-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 80%,
+    var(--ambient, var(--primary)) 0%,
+    transparent 70%
+  );
+  opacity: var(--ambient-glow-opacity, 0.12);
+  pointer-events: none;
+  transition:
+    background var(--duration-cinematic) var(--ease-gentle),
+    opacity var(--duration-cinematic) var(--ease-gentle);
+}
+
+/* ── Media Card ──────────────────────────────────────────────── */
+
+.media-card {
+  transition:
+    transform var(--duration-normal) var(--ease-gentle),
+    filter var(--duration-fast) var(--ease-default);
+}
+.media-card:hover {
+  filter: brightness(1.1);
+  transform: translateY(-4px);
+}
+
+.media-card-image {
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background-color: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 24px 40px -26px rgb(0 0 0 / 0.8);
+}
+.media-card-image img {
+  transition:
+    transform var(--duration-normal) var(--ease-gentle),
+    opacity var(--duration-normal) var(--ease-default);
+}
+.media-card:hover .media-card-image img {
+  transform: scale(1.06);
+}
+
+/* ── Metadata Badge ──────────────────────────────────────────── */
+
+.metadata-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background-color: color-mix(in srgb, var(--foreground) 8%, transparent);
+  color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ── Pill Button ─────────────────────────────────────────────── */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.78rem 1.4rem;
+  border-radius: 9999px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition: all var(--duration-fast) var(--ease-default);
+}
+.pill-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 16px 36px -20px color-mix(in srgb, var(--primary) 60%, transparent);
+}
+.pill-primary:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+.pill-secondary {
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+}
+.pill-secondary:hover {
+  background-color: var(--surface-hover);
+}
+.pill-glass {
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.pill-glass:hover {
+  background: color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+
+/* ── Action Circle ───────────────────────────────────────────── */
+
+.action-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+  color: var(--foreground);
+  transition: background-color var(--duration-fast) var(--ease-default);
+  cursor: pointer;
+  border: none;
+}
+.action-circle:hover {
+  background-color: color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+
+/* ── Page Shell ──────────────────────────────────────────────── */
+
+.page-shell {
+  width: 100%;
+  max-width: 1400px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.page-shell-wide {
+  width: 100%;
+  max-width: 1520px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .page-shell,
+  .page-shell-wide {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-shell,
+  .page-shell-wide {
+    padding-inline: 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .page-shell-wide {
+    padding-inline: 3rem;
+  }
+}
