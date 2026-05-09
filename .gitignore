@@ -1,0 +1,5 @@
+continuum-plugin-arrouter
+*.test
+.DS_Store
+node_modules/
+web/dist/
