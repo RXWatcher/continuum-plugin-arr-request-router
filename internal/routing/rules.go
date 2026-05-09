@@ -55,16 +55,13 @@ func ParseRules(raw []byte) (Rules, error) {
 	return r, nil
 }
 
-// KnownField and KnownOp are validator hooks. Task 3.2 wired KnownOp to the
-// real operator registry in operators.go. Tasks 3.3-3.5 (field accessors)
-// will replace the KnownField placeholder with a real registry.
+// KnownField and KnownOp are validator hooks.
+// KnownField delegates to the real field registry defined in fields.go.
+// KnownOp delegates to the real operator registry defined in operators.go.
 var (
 	KnownField = func(name string) bool {
-		switch name {
-		case "year":
-			return true
-		}
-		return false
+		_, ok := FieldGroupOf(name)
+		return ok
 	}
 	// KnownOp delegates to the real operator registry defined in operators.go.
 	KnownOp = knownOpImpl
