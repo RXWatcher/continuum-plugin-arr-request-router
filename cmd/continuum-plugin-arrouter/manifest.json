@@ -36,7 +36,7 @@
   "http_routes": [
     {"id": "api",    "method": "*",   "path": "/api/admin/*", "access": "admin"},
     {"id": "assets", "method": "GET", "path": "/assets/*",    "access": "admin"},
-    {"id": "spa",    "method": "GET", "path": "/admin*",      "access": "admin", "navigable": true, "navigation_label": "Arrouter", "navigation_kind": "admin"}
+    {"id": "spa",    "method": "GET", "path": "/admin/*",     "access": "admin", "navigable": true, "navigation_label": "Arrouter", "navigation_kind": "admin"}
   ],
   "global_config_schema": [
     {
