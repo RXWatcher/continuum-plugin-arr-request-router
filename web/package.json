@@ -16,6 +16,7 @@
     "embla-carousel-react": "^8.6.0",
     "embla-carousel-wheel-gestures": "^8.1.0",
     "lucide-react": "^0.541.0",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router": "^7.15.0",
