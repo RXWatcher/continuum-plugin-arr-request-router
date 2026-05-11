@@ -1409,3 +1409,49 @@ func TestPrerenderReplacesExistingHtmlAttributes(t *testing.T) {
 		t.Errorf("unexpected lang attr preserved (impl changed — update test): %s", body)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Base href injection tests (Task 1.2)
+// ---------------------------------------------------------------------------
+
+func TestPrerenderInjectsBaseHrefForDeepLink(t *testing.T) {
+	handler := newTestServerSPA(t, spaHTML)
+	r := httptest.NewRequest("GET", "/admin/registry/123/edit", nil)
+	r.Header.Set(auth.HeaderUserID, "user-1")
+	r.Header.Set(auth.HeaderRole, "admin")
+	w := do(handler, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `<base href="../../../">`) {
+		t.Errorf("body missing <base href=\"../../../\">: %s", w.Body.String())
+	}
+}
+
+func TestPrerenderInjectsBaseHrefForRoot(t *testing.T) {
+	handler := newTestServerSPA(t, spaHTML)
+	r := httptest.NewRequest("GET", "/admin", nil)
+	r.Header.Set(auth.HeaderUserID, "user-1")
+	r.Header.Set(auth.HeaderRole, "admin")
+	w := do(handler, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `<base href="./">`) {
+		t.Errorf("body missing <base href=\"./\">: %s", w.Body.String())
+	}
+}
+
+func TestPrerenderInjectsBaseHrefForTrailingSlash(t *testing.T) {
+	handler := newTestServerSPA(t, spaHTML)
+	r := httptest.NewRequest("GET", "/admin/", nil)
+	r.Header.Set(auth.HeaderUserID, "user-1")
+	r.Header.Set(auth.HeaderRole, "admin")
+	w := do(handler, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `<base href="../">`) {
+		t.Errorf("body missing <base href=\"../\">: %s", w.Body.String())
+	}
+}
