@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import RegistryTable from "../components/RegistryTable";
 
 export default function RegistryListPage() {

@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet } from "react-router";
 
 function NavItem({ to, end, label }: { to: string; end?: boolean; label: string }) {
   return (

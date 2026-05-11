@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import Layout from "./components/Layout";
 import RegistryListPage from "./pages/RegistryListPage";
 import RegistryEditorPage from "./pages/RegistryEditorPage";

@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* Continuum theme tokens — copied verbatim from continuum/web/src/app.css.
    The default `:root` block is midnight-cinema (continuum's default).
