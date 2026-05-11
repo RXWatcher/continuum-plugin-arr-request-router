@@ -19,6 +19,30 @@ import (
 // using a capture-and-append approach instead of a full replacement).
 var htmlTagRE = regexp.MustCompile(`(?i)<html(\s[^>]*)?>`)
 
+// computeBaseHref returns the relative path needed in <base href="..."> so
+// that relative asset URLs in the SPA's index.html (e.g. ./assets/foo.js,
+// emitted by Vite) resolve to the plugin's root regardless of the document
+// URL. The algorithm counts slashes in the request path directory to figure
+// out how many "../" segments are needed to climb back to /.
+//
+//	/admin                   → "./"
+//	/admin/                  → "../"
+//	/admin/registry          → "../"
+//	/admin/registry/         → "../../"
+//	/admin/registry/123/edit → "../../../"
+func computeBaseHref(reqPath string) string {
+	lastSlash := strings.LastIndex(reqPath, "/")
+	if lastSlash < 0 {
+		return "./"
+	}
+	dir := reqPath[:lastSlash+1]
+	depth := strings.Count(dir, "/") - 1
+	if depth <= 0 {
+		return "./"
+	}
+	return strings.Repeat("../", depth)
+}
+
 // handleSPA serves index.html with `data-theme="<theme>"` injected onto
 // the <html> element. The theme is read from the X-Continuum-Theme header
 // (preferred — continuum's plugin proxy injects it) or from the ?theme=…
