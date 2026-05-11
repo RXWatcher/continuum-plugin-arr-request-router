@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import RuleBuilder from "@/components/RuleBuilder";
 
 type FormState = {
   name: string;
@@ -310,15 +311,21 @@ export default function RegistryEditorPage() {
         </div>
       </section>
 
-      {/* Rules card — placeholder; filled in by Task 4.4 */}
+      {/* Rules card */}
       <section className="bg-card border-border/70 rounded-2xl border p-6">
-        <div>
+        <div className="mb-4">
           <h3 className="text-base font-semibold">Rules</h3>
-          <p className="text-muted-foreground text-sm">Route requests to this registry when…</p>
-          <p className="text-muted-foreground mt-4 text-xs italic">
-            (Rule builder lands in the next commit.)
+          <p className="text-muted-foreground text-sm">
+            Route requests to this registry when the conditions below match. Combine groups with
+            ALL or ANY; within a group, do the same for individual conditions. Empty rules match
+            every request.
           </p>
         </div>
+        <RuleBuilder
+          value={form.rules}
+          kind={form.kind}
+          onChange={(rules) => setForm({ ...form, rules })}
+        />
       </section>
     </div>
   );
