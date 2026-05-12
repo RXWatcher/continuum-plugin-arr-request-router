@@ -1,71 +1,94 @@
-import type { RegisteredArr, RequestRow, RouteTestResult, Rules, SystemStatus } from "./types";
+import type { RegisteredArr, RequestRow, RouteTestResult, Rules, SystemStatus } from './types';
+import { mountPath } from '../lib/mountPath';
+import { getCachedToken } from '../lib/auth';
 
-const base = "/api/admin";
+function apiBase(): string {
+  return `${mountPath()}/api/admin`;
+}
+
+function authHeaders(): Record<string, string> {
+  const t = getCachedToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+async function authedFetch(input: string, init?: RequestInit): Promise<Response> {
+  const headers = {
+    ...(init?.headers as Record<string, string> | undefined),
+    ...authHeaders(),
+  };
+  return fetch(input, { ...init, headers });
+}
 
 async function jsonOrThrow<T>(r: Response): Promise<T> {
-  if (!r.ok) throw new Error(`${r.status}: ${await r.text().catch(() => "")}`);
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text().catch(() => '')}`);
   return r.json();
 }
 
 async function noContentOrThrow(r: Response): Promise<void> {
-  if (!r.ok) throw new Error(`${r.status}: ${await r.text().catch(() => "")}`);
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text().catch(() => '')}`);
 }
 
 export const api = {
-  listArrs: () =>
-    fetch(`${base}/registry`).then(jsonOrThrow<RegisteredArr[]>),
+  listArrs: () => authedFetch(`${apiBase()}/registry`).then(jsonOrThrow<RegisteredArr[]>),
 
   getArr: (id: number) =>
-    fetch(`${base}/registry/${id}`).then(jsonOrThrow<RegisteredArr>),
+    authedFetch(`${apiBase()}/registry/${id}`).then(jsonOrThrow<RegisteredArr>),
 
   createArr: (input: Partial<RegisteredArr> & { api_key: string; rules: Rules }) =>
-    fetch(`${base}/registry`, {
-      method: "POST",
+    authedFetch(`${apiBase()}/registry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
-      headers: { "Content-Type": "application/json" },
-    }).then(jsonOrThrow<{ id: number }>),
+    }).then(jsonOrThrow<RegisteredArr & { id: number }>),
 
   updateArr: (id: number, patch: Partial<RegisteredArr> & { api_key?: string }) =>
-    fetch(`${base}/registry/${id}`, {
-      method: "PATCH",
+    authedFetch(`${apiBase()}/registry/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
-      headers: { "Content-Type": "application/json" },
     }).then(noContentOrThrow),
 
   deleteArr: (id: number) =>
-    fetch(`${base}/registry/${id}`, { method: "DELETE" }).then(noContentOrThrow),
+    authedFetch(`${apiBase()}/registry/${id}`, { method: 'DELETE' }).then(noContentOrThrow),
 
   testConnection: (id: number, api_key?: string) =>
-    fetch(`${base}/registry/${id}/test-connection`, {
-      method: "POST",
+    authedFetch(`${apiBase()}/registry/${id}/test-connection`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key }),
-      headers: { "Content-Type": "application/json" },
     }).then(jsonOrThrow<SystemStatus>),
 
-  routeTest: (input: { tmdbId: number; mediaType: "movie"|"tv"; title?: string; year?: number }) =>
-    fetch(`${base}/route-test`, {
-      method: "POST",
+  routeTest: (input: { tmdbId: number; mediaType: 'movie' | 'tv'; title?: string; year?: number }) =>
+    authedFetch(`${apiBase()}/route-test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
-      headers: { "Content-Type": "application/json" },
     }).then(jsonOrThrow<RouteTestResult>),
 
   listRequests: (p: { status?: string; page?: number; limit?: number }) => {
     const q = new URLSearchParams();
-    if (p.status) q.set("status", p.status);
-    if (p.page)   q.set("page", String(p.page));
-    if (p.limit)  q.set("limit", String(p.limit));
-    return fetch(`${base}/requests?${q.toString()}`).then(jsonOrThrow<{ rows: RequestRow[]; total: number }>);
+    if (p.status) q.set('status', p.status);
+    if (p.page) q.set('page', String(p.page));
+    if (p.limit) q.set('limit', String(p.limit));
+    return authedFetch(`${apiBase()}/requests?${q.toString()}`).then(
+      jsonOrThrow<{ rows: RequestRow[]; total: number }>,
+    );
   },
 
   getRequest: (id: string) =>
-    fetch(`${base}/requests/${id}`).then(jsonOrThrow<RequestRow>),
+    authedFetch(`${apiBase()}/requests/${id}`).then(jsonOrThrow<RequestRow>),
 
   retryRequest: (id: string) =>
-    fetch(`${base}/requests/${id}/retry`, { method: "POST" }).then(noContentOrThrow),
+    authedFetch(`${apiBase()}/requests/${id}/retry`, { method: 'POST' }).then(noContentOrThrow),
 
   reRouteRequest: (id: string) =>
-    fetch(`${base}/requests/${id}/re-route`, { method: "POST" }).then(noContentOrThrow),
+    authedFetch(`${apiBase()}/requests/${id}/re-route`, { method: 'POST' }).then(noContentOrThrow),
 
   forceFailRequest: (id: string) =>
-    fetch(`${base}/requests/${id}/force-fail`, { method: "POST" }).then(noContentOrThrow),
+    authedFetch(`${apiBase()}/requests/${id}/force-fail`, { method: 'POST' }).then(
+      noContentOrThrow,
+    ),
 };
+
+// Re-exported for ad-hoc tests of URL composition.
+export const _internals = { apiBase };

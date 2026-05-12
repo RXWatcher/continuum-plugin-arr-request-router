@@ -19,6 +19,35 @@ import (
 // using a capture-and-append approach instead of a full replacement).
 var htmlTagRE = regexp.MustCompile(`(?i)<html(\s[^>]*)?>`)
 
+// headTagRE matches the opening <head> tag (with or without attributes),
+// case-insensitive. Used to inject <base href> so Vite's relative asset
+// paths resolve to the plugin root regardless of the document URL.
+var headTagRE = regexp.MustCompile(`(?i)<head(\s[^>]*)?>`)
+
+// computeBaseHref returns the relative path needed in <base href="..."> so
+// that relative asset URLs in the SPA's index.html (e.g. ./assets/foo.js,
+// emitted by Vite) resolve to the plugin's root regardless of the document
+// URL. The algorithm counts slashes in the request path directory to figure
+// out how many "../" segments are needed to climb back to /.
+//
+//	/admin                   → "./"
+//	/admin/                  → "../"
+//	/admin/registry          → "../"
+//	/admin/registry/         → "../../"
+//	/admin/registry/123/edit → "../../../"
+func computeBaseHref(reqPath string) string {
+	lastSlash := strings.LastIndex(reqPath, "/")
+	if lastSlash < 0 {
+		return "./"
+	}
+	dir := reqPath[:lastSlash+1]
+	depth := strings.Count(dir, "/") - 1
+	if depth <= 0 {
+		return "./"
+	}
+	return strings.Repeat("../", depth)
+}
+
 // handleSPA serves index.html with `data-theme="<theme>"` injected onto
 // the <html> element. The theme is read from the X-Continuum-Theme header
 // (preferred — continuum's plugin proxy injects it) or from the ?theme=…
@@ -58,6 +87,12 @@ func (s *Server) handleSPA(w http.ResponseWriter, r *http.Request) {
 	safeTheme := strings.ReplaceAll(theme, `"`, "&quot;")
 
 	out := htmlTagRE.ReplaceAll(raw, []byte(`<html data-theme="`+safeTheme+`">`))
+
+	baseHref := computeBaseHref(r.URL.Path)
+	out = headTagRE.ReplaceAllFunc(out, func(m []byte) []byte {
+		// Preserve the original opening <head ...> and append <base href=...>
+		return append(append([]byte{}, m...), []byte(`<base href="`+baseHref+`">`)...)
+	})
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
