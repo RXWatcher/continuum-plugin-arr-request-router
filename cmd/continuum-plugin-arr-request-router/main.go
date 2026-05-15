@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"os/signal"
 	goruntime "runtime"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -19,24 +21,24 @@ import (
 	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
 	sdkruntime "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/httproutes"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/migrate"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/poll"
-	pluginrt "github.com/ContinuumApp/continuum-plugin-arrouter/internal/runtime"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/tmdb"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/web"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/httproutes"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/migrate"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/poll"
+	pluginrt "github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/runtime"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/tmdb"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/web"
 )
 
 //go:embed manifest.json
 var manifestRaw []byte
 
 func main() {
-	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-arrouter"})
+	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-arr-request-router"})
 
 	manifest, err := loadManifest()
 	if err != nil {
@@ -92,6 +94,14 @@ func main() {
 	poller := poll.New(pollerDeps, logger.Named("poll"))
 
 	// startPollLoop (re)starts the background poll goroutine at the given interval.
+	// rootCtx is cancelled on SIGTERM/SIGINT. Background loops (poll ticker)
+	// derive from it so a graceful shutdown stops in-flight database queries
+	// instead of letting the host's drain timeout kill them mid-statement.
+	// signal.NotifyContext fanning to multiple subscribers is documented and
+	// safe; the SDK runtime's own signal handler continues running.
+	rootCtx, rootCancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer rootCancel()
+
 	startPollLoop := func(interval time.Duration) {
 		pollLoopMu.Lock()
 		defer pollLoopMu.Unlock()
@@ -102,7 +112,7 @@ func main() {
 			pollLoopCancel = nil
 			return
 		}
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(rootCtx)
 		pollLoopCancel = cancel
 		go func() {
 			t := time.NewTicker(interval)
@@ -123,7 +133,18 @@ func main() {
 	rt := pluginrt.New(manifest, func(cfg pluginrt.Config) error {
 		ctx := context.Background()
 
-		p, err := pgxpool.New(ctx, cfg.DatabaseURL)
+		// Explicit MaxConns cap. The pgx default scales with GOMAXPROCS and
+		// can be as low as 4; the poll loop + admin SPA + consumer mix can
+		// starve under that. 16 is generous without saturating a shared
+		// Postgres. Operators override via DSN (?pool_max_conns=N).
+		pcfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+		if err != nil {
+			return fmt.Errorf("parse db: %w", err)
+		}
+		if pcfg.MaxConns < 16 {
+			pcfg.MaxConns = 16
+		}
+		p, err := pgxpool.NewWithConfig(ctx, pcfg)
 		if err != nil {
 			return fmt.Errorf("pgxpool: %w", err)
 		}

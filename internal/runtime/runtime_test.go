@@ -10,7 +10,7 @@ import (
 
 // makeEntry builds a ConfigEntry whose Value is a structpb.Struct containing the
 // supplied fields — mirroring the {"value": ...} envelope used in the manifest
-// json_schema and the arrproxy convention.
+// json_schema and the existing {"value": ...} envelope convention.
 func makeEntry(key string, fields map[string]any) *pluginv1.ConfigEntry {
 	s, err := structpb.NewStruct(fields)
 	if err != nil {

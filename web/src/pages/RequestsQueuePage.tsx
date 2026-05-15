@@ -120,7 +120,7 @@ export default function RequestsQueuePage() {
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Requests queue</h2>
         <p className="text-muted-foreground mt-1 text-sm">
-          Recent requests routed by this arrouter.
+          Recent requests routed by Arr Request Router.
         </p>
       </div>
 

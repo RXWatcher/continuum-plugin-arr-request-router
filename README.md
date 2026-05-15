@@ -1,30 +1,15 @@
-# continuum-plugin-arrouter
+# continuum-plugin-arr-request-router
 
-Rule-based multi-*arr router for the Continuum media server. It consumes
+Arr Request Router is a rule-based multi-*arr router for the Continuum media server. It consumes
 `plugin.continuum.requests.submitted` and `plugin.continuum.requests.cancelled`
 events, evaluates each request against an admin-curated list of registered
 Radarr/Sonarr instances using configurable rule groups, and forwards to the
 first matching *arr in priority order.
 
-Unlike `continuum.arrproxy` (one *arr per media type, global config), arrouter
-manages an arbitrary number of *arr instances. An admin creates and prioritizes
-them via the built-in admin SPA; each instance carries its own URL, API key,
-root folder path, quality profile, and a set of routing rules.
-
-## Comparison with `continuum.arrproxy`
-
-| | arrproxy | arrouter |
-|---|---|---|
-| Radarr instances | 1 | N (admin-managed) |
-| Sonarr instances | 1 | N (admin-managed) |
-| Routing | implicit (media type only) | explicit rule groups |
-| Rule fields | — | title, year, genre, keyword, content rating, requester, library |
-| Admin SPA | no | yes |
-| TMDB enrichment | no | yes (keyword + content rating lookup) |
-
-Pick `arrproxy` for a simple single-arr setup. Pick `arrouter` when you need
-to route requests across multiple arr instances (e.g. 4K vs SD Radarr, or
-anime vs standard Sonarr).
+Arr Request Router manages an arbitrary number of *arr instances. An admin
+creates and prioritizes them via the built-in admin SPA; each instance carries
+its own URL, API key, root folder path, quality profile, and a set of routing
+rules.
 
 ## Install — operator pre-flight
 
@@ -91,7 +76,7 @@ routing algorithm.
 
 ```
 make build                              # pnpm run build + go build
-./continuum-plugin-arrouter manifest    # print manifest JSON
+./continuum-plugin-arr-request-router manifest    # print manifest JSON
 ```
 
 ```

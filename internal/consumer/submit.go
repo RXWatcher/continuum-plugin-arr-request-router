@@ -7,11 +7,11 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/crypto"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/crypto"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
 )
 
 // SubmitHandler is the workhorse for plugin.continuum.requests.submitted.
@@ -55,7 +55,7 @@ func (h *SubmitHandler) HandleSubmitted(ctx context.Context, p map[string]any) e
 // (Task 9.5) and re-route handlers can reuse it after the row is already
 // in the store. Caller is responsible for the initial UpsertRequestQueued.
 func (h *SubmitHandler) Submit(ctx context.Context, ev routing.RequestEvent) error {
-	candidates, err := h.loadCandidates(ctx, ev.MediaType)
+	candidates, err := h.Store.LoadCandidates(ctx, ev.MediaType)
 	if err != nil {
 		return err
 	}
@@ -112,23 +112,6 @@ func (h *SubmitHandler) Submit(ctx context.Context, ev routing.RequestEvent) err
 		h.Events.Failed(ctx, ev.RequestID, addErr.Error())
 		return nil
 	}
-}
-
-func (h *SubmitHandler) loadCandidates(ctx context.Context, mediaType string) ([]routing.Candidate, error) {
-	kind := "radarr"
-	if mediaType == "tv" {
-		kind = "sonarr"
-	}
-	rows, err := h.Store.ListEnabledArrsByKind(ctx, kind)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]routing.Candidate, 0, len(rows))
-	for _, row := range rows {
-		rules, _ := routing.ParseRules(row.RulesJSON)
-		out = append(out, routing.Candidate{ID: row.ID, Name: row.Name, Kind: row.Kind, Rules: rules})
-	}
-	return out, nil
 }
 
 func (h *SubmitHandler) submitToArr(ctx context.Context, a *store.RegisteredArr, apiKey string, ev routing.RequestEvent) (int, error) {

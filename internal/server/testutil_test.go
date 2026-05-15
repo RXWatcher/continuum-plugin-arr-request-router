@@ -13,8 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/migrate"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/migrate"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
 )
 
 var (

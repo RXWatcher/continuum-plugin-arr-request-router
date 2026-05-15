@@ -1,8 +1,8 @@
-/continuum-plugin-arrouter
+/continuum-plugin-arr-request-router
 /.idea
 /*.test
 *.out
-continuum-plugin-arrouter-linux-amd64
+continuum-plugin-arr-request-router-linux-amd64
 web/dist/
 web/node_modules/
 web/*.tsbuildinfo

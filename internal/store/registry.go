@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
 )
 
 // RegisteredArr represents a row in the registered_arr table.
@@ -114,6 +116,27 @@ ORDER BY priority, id`
 	defer rows.Close()
 
 	return scanArrs(rows)
+}
+
+// LoadCandidates returns enabled arrs for the given media type ("movie" → radarr,
+// "tv" → sonarr) projected as routing.Candidate values. Centralizes the
+// store-row → routing.Candidate conversion previously duplicated in the
+// consumer (submit) and server (route-test) handlers.
+func (s *Store) LoadCandidates(ctx context.Context, mediaType string) ([]routing.Candidate, error) {
+	kind := "radarr"
+	if mediaType == "tv" {
+		kind = "sonarr"
+	}
+	rows, err := s.ListEnabledArrsByKind(ctx, kind)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]routing.Candidate, 0, len(rows))
+	for _, row := range rows {
+		rules, _ := routing.ParseRules(row.RulesJSON)
+		out = append(out, routing.Candidate{ID: row.ID, Name: row.Name, Kind: row.Kind, Rules: rules})
+	}
+	return out, nil
 }
 
 // UpdateArr updates all mutable fields of the given RegisteredArr row,

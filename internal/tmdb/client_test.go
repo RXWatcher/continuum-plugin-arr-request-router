@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
 )
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
 )
 
 func mkRule(field, op string, value string) routing.Rule {

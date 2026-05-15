@@ -1,4 +1,4 @@
-module github.com/ContinuumApp/continuum-plugin-arrouter
+module github.com/ContinuumApp/continuum-plugin-arr-request-router
 
 go 1.26.0
 

@@ -11,12 +11,12 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/crypto"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/crypto"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ func radarrServer(t *testing.T, movieID int, postStatus int, postCount *atomic.I
 // Shared constants and helpers
 // ---------------------------------------------------------------------------
 
-const testSecretKey = "test-secret-key-arrouter"
+const testSecretKey = "test-secret-key-arr-request-router"
 
 // sealKey encrypts plaintext with the test secret key.
 func sealKey(t *testing.T, plaintext string) string {

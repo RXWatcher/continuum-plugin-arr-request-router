@@ -14,14 +14,14 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/auth"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/crypto"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/auth"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/crypto"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
 )
 
 const testSecretKey = "test-secret-key-for-handlers-tests"
@@ -1383,12 +1383,11 @@ func TestPrerenderEscapesQuotesInTheme(t *testing.T) {
 	}
 }
 
-// TestPrerenderReplacesExistingHtmlAttributes documents the known behavior:
-// the regex replaces the WHOLE <html ...> tag, so existing attributes (e.g.
-// lang="en") are lost in the rewrite. The SPA template must not rely on
-// attributes other than data-theme. See prerender_handler.go for the constraint
-// comment.
-func TestPrerenderReplacesExistingHtmlAttributes(t *testing.T) {
+// TestPrerenderPreservesExistingHtmlAttributes verifies that pre-existing
+// attributes on the <html> tag (e.g. lang="en") survive the data-theme
+// injection. If index.html ships with attributes, dropping them silently
+// would regress accessibility (lang) or styling (class).
+func TestPrerenderPreservesExistingHtmlAttributes(t *testing.T) {
 	handler := newTestServerSPA(t, spaHTML) // spaHTML has <html lang="en">
 	r := httptest.NewRequest("GET", "/admin/", nil)
 	r.Header.Set(auth.HeaderUserID, "user-1")
@@ -1399,14 +1398,37 @@ func TestPrerenderReplacesExistingHtmlAttributes(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
-	// data-theme must be injected.
 	if !strings.Contains(body, `data-theme="cobalt-studio"`) {
 		t.Errorf("data-theme not injected: %s", body)
 	}
-	// Known behavior: lang="en" is lost because the whole tag is replaced.
-	// This is intentional — the SPA template does not use lang= or other attrs.
-	if strings.Contains(body, `lang="en"`) {
-		t.Errorf("unexpected lang attr preserved (impl changed — update test): %s", body)
+	if !strings.Contains(body, `lang="en"`) {
+		t.Errorf("existing lang attr dropped: %s", body)
+	}
+}
+
+// TestPrerenderPreservesMultipleHtmlAttributes covers the multi-attribute
+// case: both lang and class must survive alongside the injected data-theme.
+func TestPrerenderPreservesMultipleHtmlAttributes(t *testing.T) {
+	html := `<!doctype html><html lang="en" class="dark">` +
+		`<head></head><body><div id="root"></div></body></html>`
+	handler := newTestServerSPA(t, html)
+	r := httptest.NewRequest("GET", "/admin/", nil)
+	r.Header.Set(auth.HeaderUserID, "user-1")
+	r.Header.Set(auth.HeaderRole, "admin")
+	r.Header.Set("X-Continuum-Theme", "cobalt-studio")
+	w := do(handler, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `data-theme="cobalt-studio"`) {
+		t.Errorf("data-theme not injected: %s", body)
+	}
+	if !strings.Contains(body, `lang="en"`) {
+		t.Errorf("existing lang attr dropped: %s", body)
+	}
+	if !strings.Contains(body, `class="dark"`) {
+		t.Errorf("existing class attr dropped: %s", body)
 	}
 }
 

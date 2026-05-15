@@ -1,11 +1,10 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
 )
 
 // POST /api/admin/route-test
@@ -32,7 +31,7 @@ func (s *Server) handleRouteTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	candidates, err := s.loadCandidates(r.Context(), in.MediaType)
+	candidates, err := s.deps.Store.LoadCandidates(r.Context(), in.MediaType)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -46,24 +45,4 @@ func (s *Server) handleRouteTest(w http.ResponseWriter, r *http.Request) {
 	}
 	chosen, trace := routing.Decide(r.Context(), candidates, ev, s.deps.Enricher)
 	writeJSON(w, 200, map[string]any{"chosen": chosen, "trace": trace})
-}
-
-// loadCandidates loads the enabled registered arrs for the given mediaType
-// and returns them as routing.Candidate values. Shared with the consumer's
-// submit path; duplicated here per task spec.
-func (s *Server) loadCandidates(ctx context.Context, mediaType string) ([]routing.Candidate, error) {
-	kind := "radarr"
-	if mediaType == "tv" {
-		kind = "sonarr"
-	}
-	rows, err := s.deps.Store.ListEnabledArrsByKind(ctx, kind)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]routing.Candidate, 0, len(rows))
-	for _, row := range rows {
-		rules, _ := routing.ParseRules(row.RulesJSON)
-		out = append(out, routing.Candidate{ID: row.ID, Name: row.Name, Kind: row.Kind, Rules: rules})
-	}
-	return out, nil
 }

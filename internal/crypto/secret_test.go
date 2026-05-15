@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/crypto"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/crypto"
 )
 
 func TestSealOpenRoundTrip(t *testing.T) {

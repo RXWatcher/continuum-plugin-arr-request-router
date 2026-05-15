@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
 )
 
 // sampleRequest returns a minimal Request suitable for insertion in tests.

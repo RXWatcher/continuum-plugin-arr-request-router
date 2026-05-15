@@ -7,10 +7,9 @@ matching *arr in priority order**. Polls each registered *arr periodically to
 track download/import progress and publishes status events back so subscribers
 (today: `continuum.requests`) can mirror state.
 
-This plugin is an **alternative to `continuum.arrproxy`** — an admin installs
-one or the other, not both. The architecture deliberately mirrors arrproxy
-(same queue/poll/status-event shape, same Radarr/Sonarr v3 client surface)
-so the two stay easy to compare and maintain.
+This plugin is designed for installs that need more than one Radarr or Sonarr
+target. Admins define the available instances and the rules that choose between
+them.
 
 ## Capabilities (manifest)
 
@@ -31,7 +30,7 @@ so the two stay easy to compare and maintain.
 | Plugin id | `continuum.arrouter` |
 | Schema | `arrouter` |
 | Postgres role | `plugin_arrouter` |
-| Repo | `continuum-plugin-arrouter` (public) — arrouter is the OSS counterpart to the private `continuum.arrproxy` |
+| Repo | `continuum-plugin-arr-request-router` |
 
 ## DB (schema-per-plugin)
 
@@ -338,7 +337,7 @@ match_trace.
 
 ### On `plugin.continuum.requests.submitted`
 
-Event payload (unchanged from arrproxy contract — same producer):
+Event payload:
 
 ```json
 {
@@ -396,7 +395,7 @@ Event payload (unchanged from arrproxy contract — same producer):
 
 Sonarr: if `tmdbId` lookup yields no series in
 `/api/v3/series/lookup?term=tmdb:N`, fall back to title/year search and pick
-the first hit, same as arrproxy.
+the first hit.
 
 ### On `plugin.continuum.requests.cancelled`
 
@@ -443,8 +442,6 @@ a slow instance can't starve the others; per-*arr inner loop is sequential.
 
 ### Events arrouter publishes
 
-Mirror arrproxy's vocabulary, with `unrouted` added.
-
 | Event                                    | When                                              |
 |------------------------------------------|---------------------------------------------------|
 | `plugin.continuum.arrouter.submitted`    | After successful POST to chosen *arr             |
@@ -454,18 +451,13 @@ Mirror arrproxy's vocabulary, with `unrouted` added.
 | `plugin.continuum.arrouter.cancelled`    | After cancel (whether *arr DELETE succeeded)     |
 | `plugin.continuum.arrouter.unrouted`     | Routing produced no match (terminal)             |
 
-Payload shape is identical to arrproxy's (request id, timestamps,
-optional error). `unrouted` adds an optional `reason` string,
-typically `"no registered *arr matched"`.
+Payloads include request id, timestamps, and an optional error. `unrouted` adds
+an optional `reason` string, typically `"no registered *arr matched"`.
 
 ## Continuum.requests changes
 
-The requests plugin currently watches arrproxy's status events to mirror
-state. We extend it to watch arrouter's events too, so admins can install
-either plugin without further changes.
-
-In `continuum-plugin-requests/internal/manifest.go` (or wherever
-subscriptions are declared), add:
+The requests plugin subscribes to Arr Request Router status events so it can
+mirror routing outcomes:
 
 - `plugin.continuum.arrouter.submitted`
 - `plugin.continuum.arrouter.downloading`
@@ -474,22 +466,8 @@ subscriptions are declared), add:
 - `plugin.continuum.arrouter.cancelled`
 - `plugin.continuum.arrouter.unrouted`
 
-In the watcher dispatch:
-
-- Rename `handleArrproxyDownloading` / `handleArrproxyFailed` /
-  `handleArrproxyImported` / `handleArrproxyCancelled` /
-  `handleArrproxySubmitted` to `handleRouterDownloading` /
-  `handleRouterFailed` / etc. Payload shape is identical, so the
-  handler bodies are unchanged.
-- Map both prefixes (`plugin.continuum.arrproxy.*` and
-  `plugin.continuum.arrouter.*`) to the same handler.
-- Map `plugin.continuum.arrouter.unrouted` to the existing
-  `handleRouterFailed` handler with `reason = "no registered *arr matched"`,
-  surfaced as a normal `failed` request from the requests UI's perspective.
-
-These changes ship as a minor version bump on `continuum.requests`. Older
-arrproxy installs continue to work unchanged (the new subscriptions are
-additive).
+`plugin.continuum.arrouter.unrouted` is surfaced as a normal failed request
+with reason `"no registered *arr matched"`.
 
 ## Admin HTTP routes
 
@@ -634,6 +612,3 @@ has a non-default theme set, and verify `<html data-theme="...">` matches.
 - **Round-robin / weighted routing within a tier**: out of scope. Priority is
   strictly a tiebreaker; if you need round-robin, file an issue with a
   motivating use case.
-- **Importing existing arrproxy state**: out of scope. arrouter is an
-  alternative, not a successor — admins switching install one, drain the
-  other, and uninstall.

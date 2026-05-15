@@ -24,7 +24,7 @@ export default function Layout() {
           <span className="text-border/60" aria-hidden>
             /
           </span>
-          <h1 className="text-base font-semibold tracking-tight">Arrouter</h1>
+          <h1 className="text-base font-semibold tracking-tight">Arr Request Router</h1>
         </div>
         <nav className="flex items-center gap-1">
           <NavLink

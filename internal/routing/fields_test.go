@@ -3,7 +3,7 @@ package routing_test
 import (
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/routing"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
 )
 
 // ── Group A ──────────────────────────────────────────────────────────────────

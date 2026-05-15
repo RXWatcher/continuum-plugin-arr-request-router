@@ -23,20 +23,20 @@
     {
       "type": "http_routes.v1",
       "id": "admin",
-      "display_name": "Arrouter Admin",
-      "description": "Admin SPA for the arrouter plugin."
+      "display_name": "Arr Request Router Admin",
+      "description": "Admin SPA for the Arr Request Router plugin."
     },
     {
       "type": "request_router.v1",
       "id": "default",
-      "display_name": "Rule-based multi-arr router",
+      "display_name": "Rule-based Arr request router",
       "description": "Routes requests to one of N registered Radarr/Sonarr instances based on rules."
     }
   ],
   "http_routes": [
     {"id": "api",    "method": "*",   "path": "/api/admin/*", "access": "admin"},
     {"id": "assets", "method": "GET", "path": "/assets/*",    "access": "public"},
-    {"id": "spa",    "method": "GET", "path": "/admin/*",     "access": "admin", "navigable": true, "navigation_label": "Routing & Registries", "navigation_kind": "admin"}
+    {"id": "spa",    "method": "GET", "path": "/admin/*",     "access": "admin", "navigable": true, "navigation_label": "Request Routing", "navigation_kind": "admin"}
   ],
   "global_config_schema": [
     {

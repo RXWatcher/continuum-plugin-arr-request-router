@@ -8,15 +8,10 @@ import (
 	"strings"
 )
 
-// htmlTagRE matches the opening <html> tag (with or without existing
-// attributes), case-insensitive.
-//
-// CONSTRAINT: This regex replaces the WHOLE <html ...> tag, so any existing
-// attributes (e.g. lang="en") are lost in the rewrite. The SPA scaffold's
-// index.html deliberately avoids attributes other than the injected data-theme,
-// so this is acceptable. If index.html is ever updated to include lang= or
-// class= attributes, this handler must be updated to preserve them (e.g. by
-// using a capture-and-append approach instead of a full replacement).
+// htmlTagRE matches the opening <html> tag with an optional attribute list
+// captured in group 1, case-insensitive. The captured attrs are preserved
+// when data-theme is injected so existing attributes (e.g. lang="en",
+// class="...") survive the rewrite.
 var htmlTagRE = regexp.MustCompile(`(?i)<html(\s[^>]*)?>`)
 
 // headTagRE matches the opening <head> tag (with or without attributes),
@@ -86,7 +81,16 @@ func (s *Server) handleSPA(w http.ResponseWriter, r *http.Request) {
 	}
 	safeTheme := strings.ReplaceAll(theme, `"`, "&quot;")
 
-	out := htmlTagRE.ReplaceAll(raw, []byte(`<html data-theme="`+safeTheme+`">`))
+	out := htmlTagRE.ReplaceAllFunc(raw, func(m []byte) []byte {
+		// Group 1 captures the existing attribute list (including the
+		// leading whitespace) or nil if the tag has no attributes.
+		sub := htmlTagRE.FindSubmatch(m)
+		attrs := ""
+		if len(sub) >= 2 {
+			attrs = string(sub[1])
+		}
+		return []byte(`<html data-theme="` + safeTheme + `"` + attrs + `>`)
+	})
 
 	baseHref := computeBaseHref(r.URL.Path)
 	out = headTagRE.ReplaceAllFunc(out, func(m []byte) []byte {

@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arrouter/internal/arr"
+	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
 )
 
 func TestRadarrAddMoviePostsTMDBID(t *testing.T) {

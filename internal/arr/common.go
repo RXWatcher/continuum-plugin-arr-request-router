@@ -20,6 +20,12 @@ import (
 // on the same LAN, so 10s is generous.
 const defaultTimeout = 10 * time.Second
 
+// maxResponseBytes caps response bodies read from the upstream *arr API.
+// Movie/series/queue JSON payloads are well under this in normal
+// operation; the cap defends against memory exhaustion if a misbehaving
+// or compromised *arr instance returns a runaway body.
+const maxResponseBytes = 10 << 20 // 10 MiB
+
 // httpClient is the common HTTP plumbing shared by the Radarr and Sonarr
 // clients. It does not embed a base URL or api key — the embedding client
 // supplies those per call. Construction is the same for both, so we share
@@ -91,7 +97,7 @@ func (c httpClient) do(ctx context.Context, method, path string, query url.Value
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("read body: %w", err)
 	}
