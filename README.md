@@ -1,98 +1,120 @@
-# continuum-plugin-arr-request-router
+# Arr Request Router Plugin
 
-Arr Request Router is a rule-based multi-*arr router for the Continuum media server. It consumes
-`plugin.continuum.requests.submitted` and `plugin.continuum.requests.cancelled`
-events, evaluates each request against an admin-curated list of registered
-Radarr/Sonarr instances using configurable rule groups, and forwards to the
-first matching *arr in priority order.
+`continuum.arrouter` is a rule-based request router for Continuum media
+requests. It routes approved movie and TV requests to one of many registered
+Radarr or Sonarr instances by evaluating admin-defined rules.
 
-Arr Request Router manages an arbitrary number of *arr instances. An admin
-creates and prioritizes them via the built-in admin SPA; each instance carries
-its own URL, API key, root folder path, quality profile, and a set of routing
-rules.
+## What It Does
 
-## Install — operator pre-flight
+- Consumes submitted and cancelled request events from `continuum.requests`.
+- Maintains an admin-managed registry of Radarr and Sonarr targets.
+- Encrypts stored target API keys at rest.
+- Enriches requests with TMDB metadata for rule evaluation.
+- Routes each request to the first matching enabled target by priority.
+- Polls routed targets for download/import progress.
+- Publishes status events back to Continuum.
+- Provides an admin SPA for registry management, rule editing, route tests, and
+  request queue operations.
 
-**1. Create the Postgres role and schema** in continuum's database:
+## Capabilities
+
+| Capability | ID | Purpose |
+|---|---|---|
+| `event_consumer.v1` | `router` | Handles request submitted/cancelled events. |
+| `scheduled_task.v1` | `poll` | Polls registered Radarr/Sonarr targets. |
+| `http_routes.v1` | `admin` | Serves admin API and admin SPA. |
+| `request_router.v1` | `default` | Advertises request-router support to Continuum. |
+
+## HTTP Routes
+
+| Route | Access | Purpose |
+|---|---|---|
+| `/api/admin/*` | admin | Registry, route test, queue, retry, and reroute API. |
+| `/assets/*` | public | Static admin UI assets. |
+| `/admin/*` | admin | Navigable admin UI labelled `Request Routing`. |
+
+## Configuration
+
+| Key | Required | Description |
+|---|---|---|
+| `database_url` | yes | Postgres DSN using the `arrouter` schema. |
+| `tmdb.api_key` | yes | TMDB v3 API key for metadata enrichment. |
+| `tmdb.language` | no | TMDB language tag. Defaults to `en-US`. |
+| `poll_interval_seconds` | no | Poll interval in seconds. |
+| `stale_after_hours` | no | Time before stuck requests are marked failed. |
+| `secret_key` | yes | Secret used to encrypt registered target API keys. |
+
+Example `database_url`:
+
+```text
+postgres://plugin_arrouter:password@postgres:5432/continuum?search_path=arrouter&sslmode=disable
+```
+
+## Database Setup
 
 ```sql
-CREATE ROLE plugin_arrouter WITH LOGIN PASSWORD '<chosen by operator>';
+CREATE ROLE plugin_arrouter WITH LOGIN PASSWORD '<chosen>';
 CREATE SCHEMA arrouter AUTHORIZATION plugin_arrouter;
 GRANT CONNECT ON DATABASE continuum TO plugin_arrouter;
 ```
 
-The plugin runs its own migrations on startup against the `arrouter` schema.
+The plugin applies its own migrations inside the configured schema.
 
-**2. Get a TMDB v3 API key.** Register at <https://www.themoviedb.org/settings/api>.
-The plugin uses it to enrich requests with keyword and content-rating data
-for rule evaluation.
+## Routing Model
 
-**3. Generate a secret key** (16+ random characters). This is used to
-AES-GCM-encrypt API keys stored in the database. Rotating it invalidates all
-stored API keys — every registered *arr will need its API key re-entered via
-the admin SPA.
+Each registered target has:
 
-## Configuration
+- type: Radarr or Sonarr
+- base URL
+- encrypted API key
+- root folder path
+- quality profile
+- optional language profile for Sonarr
+- priority
+- enabled/disabled state
+- rules JSON
 
-Set in continuum's plugin admin UI (fields are defined in `manifest.json`
-under `global_config_schema`):
+Rules can match fields from the original request and enriched TMDB metadata,
+including title, year, genres, keywords, content ratings, requester attributes,
+and library context. Lower priority numbers are tried first. The first enabled
+target whose rules match receives the request.
 
-| Key | Required | Description |
-|---|---|---|
-| `database_url` | yes | `postgres://plugin_arrouter:<pw>@<host>/<db>?search_path=arrouter` |
-| `tmdb.api_key` | yes | TMDB v3 read API key |
-| `tmdb.language` | no | TMDB language tag; defaults to `en-US` |
-| `secret_key` | yes | AES-GCM key for API key encryption; min 16 chars |
-| `poll_interval_seconds` | no | Status poll interval; default 30, min 10, max 600 |
-| `stale_after_hours` | no | Mark stuck requests failed after N hours; default 72 |
+## Event Flow
 
-## Rules
+Input subscriptions:
 
-Each registered *arr carries a top-level rule set (match `all` or `any` of N
-rule groups). Each group is a set of individual field rules. A request is
-routed to an *arr only if its rule set matches.
+- `plugin.continuum.requests.submitted`
+- `plugin.continuum.requests.cancelled`
 
-Example (matches English-language horror movies):
+Published status events:
 
-```json
-{
-  "match": "all",
-  "groups": [
-    {
-      "match": "all",
-      "rules": [
-        { "field": "genre", "op": "contains", "value": "Horror" },
-        { "field": "original_language", "op": "eq", "value": "en" }
-      ]
-    }
-  ]
-}
+- `plugin.continuum.arrouter.submitted`
+- `plugin.continuum.arrouter.downloading`
+- `plugin.continuum.arrouter.imported`
+- `plugin.continuum.arrouter.failed`
+- `plugin.continuum.arrouter.cancelled`
+- `plugin.continuum.arrouter.unrouted`
+
+`unrouted` means no enabled target matched the request rules.
+
+## Build And Test
+
+```bash
+go test ./...
+go build -buildvcs=false -o continuum-plugin-arr-request-router ./cmd/continuum-plugin-arr-request-router
 ```
 
-See [SPEC.md](SPEC.md) for the full field catalog, operator reference, and
-routing algorithm.
+If web assets are changed, build the web project before packaging the binary.
 
-## Build
+## Operational Notes
 
-```
-make build                              # pnpm run build + go build
-./continuum-plugin-arr-request-router manifest    # print manifest JSON
-```
+- Rotating `secret_key` invalidates stored target API keys.
+- TMDB failures do not automatically fail requests; rules depending on missing
+  enriched fields evaluate as not matched.
+- The poll loop fans out by target so a slow target does not block the entire
+  queue.
+- Prefer explicit catch-all targets at low priority for fallback behavior.
 
-```
-make test    # go test ./...
-```
+## Repository Status
 
-The Makefile runs `pnpm run build` inside `web/` before `go build` so the
-embedded SPA is always up-to-date.
-
-## Develop
-
-The SDK is referenced via `replace` in `go.mod` (points at
-`/opt/worktrees/continuum-plugin-sdk-rh`). Adjust the path to your local SDK
-checkout. Run `make test` for backend tests; `pnpm run dev` inside `web/` for
-the frontend hot-reload server.
-
-## License
-
-MIT
+This is a first-party Continuum plugin owned by the Continuum project.
