@@ -42,36 +42,44 @@ func (p *Publisher) Publish(ctx context.Context, name string, payload map[string
 
 // Submitted publishes the submitted event when a routing request is accepted.
 func (p *Publisher) Submitted(ctx context.Context, requestID string) {
-	p.Publish(ctx, "submitted", map[string]any{"requestId": requestID})
+	p.Publish(ctx, "submitted", requestPayload(requestID))
 }
 
 // Downloading publishes the downloading event when an arr instance begins
 // fetching the media.
 func (p *Publisher) Downloading(ctx context.Context, requestID string) {
-	p.Publish(ctx, "downloading", map[string]any{"requestId": requestID})
+	p.Publish(ctx, "downloading", requestPayload(requestID))
 }
 
 // Imported publishes the imported event when an arr instance has successfully
 // imported the media.
 func (p *Publisher) Imported(ctx context.Context, requestID string) {
-	p.Publish(ctx, "imported", map[string]any{"requestId": requestID})
+	p.Publish(ctx, "imported", requestPayload(requestID))
 }
 
 // Failed publishes the failed event. The error string is included so the
 // requests plugin can surface a useful message to the user.
 func (p *Publisher) Failed(ctx context.Context, requestID, error string) {
-	p.Publish(ctx, "failed", map[string]any{"requestId": requestID, "error": error})
+	payload := requestPayload(requestID)
+	payload["error"] = error
+	p.Publish(ctx, "failed", payload)
 }
 
 // Cancelled publishes the cancelled event when a request is cancelled before
 // or during download.
 func (p *Publisher) Cancelled(ctx context.Context, requestID string) {
-	p.Publish(ctx, "cancelled", map[string]any{"requestId": requestID})
+	p.Publish(ctx, "cancelled", requestPayload(requestID))
 }
 
 // Unrouted publishes the unrouted terminal event when no registry entry
 // matches the routing request. The error string is included so the requests
 // plugin can surface a useful message to the user.
 func (p *Publisher) Unrouted(ctx context.Context, requestID, error string) {
-	p.Publish(ctx, "unrouted", map[string]any{"requestId": requestID, "error": error})
+	payload := requestPayload(requestID)
+	payload["error"] = error
+	p.Publish(ctx, "unrouted", payload)
+}
+
+func requestPayload(requestID string) map[string]any {
+	return map[string]any{"requestId": requestID, "request_id": requestID}
 }

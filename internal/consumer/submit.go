@@ -181,16 +181,15 @@ func (h *SubmitHandler) submitToArr(ctx context.Context, a *store.RegisteredArr,
 // the wrong type. Numeric fields arrive as float64 from JSON unmarshal.
 func parseSubmitPayload(p map[string]any) (routing.RequestEvent, error) {
 	ev := routing.RequestEvent{}
-	var ok bool
 
-	if ev.RequestID, ok = p["requestId"].(string); !ok || ev.RequestID == "" {
+	if ev.RequestID = stringField(p, "requestId", "request_id"); ev.RequestID == "" {
 		return ev, fmt.Errorf("missing requestId")
 	}
-	if ev.MediaType, ok = p["mediaType"].(string); !ok || (ev.MediaType != "movie" && ev.MediaType != "tv") {
-		return ev, fmt.Errorf("invalid mediaType: %v", p["mediaType"])
+	if ev.MediaType = stringField(p, "mediaType", "media_type"); ev.MediaType != "movie" && ev.MediaType != "tv" {
+		return ev, fmt.Errorf("invalid mediaType: %v", ev.MediaType)
 	}
-	tmdbF, ok := p["tmdbId"].(float64)
-	if !ok {
+	tmdbF := floatField(p, "tmdbId", "tmdb_id")
+	if tmdbF == 0 {
 		return ev, fmt.Errorf("missing tmdbId")
 	}
 	ev.TMDBID = int(tmdbF)
@@ -202,13 +201,13 @@ func parseSubmitPayload(p map[string]any) (routing.RequestEvent, error) {
 	if v, ok := p["year"].(float64); ok {
 		ev.Year = int(v)
 	}
-	if v, ok := p["posterUrl"].(string); ok {
+	if v := stringField(p, "posterUrl", "poster_url"); v != "" {
 		ev.PosterURL = v
 	}
-	if v, ok := p["libraryId"].(string); ok {
+	if v := stringField(p, "libraryId", "library_id"); v != "" {
 		ev.LibraryID = v
 	}
-	if v, ok := p["requesterUserId"].(string); ok {
+	if v := stringField(p, "requesterUserId", "requester_user_id"); v != "" {
 		ev.RequesterUserID = v
 	}
 	if v, ok := p["requesterIsAdmin"].(bool); ok {
@@ -216,4 +215,22 @@ func parseSubmitPayload(p map[string]any) (routing.RequestEvent, error) {
 	}
 
 	return ev, nil
+}
+
+func stringField(p map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if v, _ := p[key].(string); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func floatField(p map[string]any, keys ...string) float64 {
+	for _, key := range keys {
+		if v, _ := p[key].(float64); v != 0 {
+			return v
+		}
+	}
+	return 0
 }

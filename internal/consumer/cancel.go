@@ -31,7 +31,7 @@ type CancelHandler struct {
 //  5. MarkCancelled in the store (store-side guard prevents double-cancel).
 //  6. Publish Events.Cancelled (void).
 func (h *CancelHandler) HandleCancelled(ctx context.Context, p map[string]any) error {
-	id, _ := p["requestId"].(string)
+	id := stringField(p, "requestId", "request_id")
 	if id == "" {
 		return nil
 	}
