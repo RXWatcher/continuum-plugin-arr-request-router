@@ -9,6 +9,10 @@ Use this plugin when one Arr stack is not enough: multiple quality tiers,
 language-specific instances, separate 4K targets, regional libraries, or
 requester/group based routing.
 
+## Detailed Operations Docs
+
+- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+
 ## Features
 
 - Consumes submitted and cancelled request events from `continuum.requests`.
