@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "checksum": "__CHECKSUM__",
   "continuum_api_version": "v1",
+  "supported_platforms": [
+    {
+      "os": "linux",
+      "arch": "amd64"
+    }
+  ],
   "capabilities": [
     {
       "type": "event_consumer.v1",
@@ -52,7 +58,7 @@
       "path": "/admin/*",
       "access": "admin",
       "navigable": true,
-      "navigation_label": "Request Routing",
+      "navigation_label": "Arr Router",
       "navigation_kind": "admin"
     }
   ],
@@ -79,15 +85,13 @@
       "key": "tmdb.api_key",
       "title": "TMDB API key",
       "description": "TMDB v3 API key. Used for rule enrichment (genres, keywords, content rating, etc.).",
-      "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}",
-      "required": true,
+      "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}}}",
       "admin_form": {
         "fields": [
           {
             "key": "value",
             "label": "API Key",
             "control": "ADMIN_FORM_CONTROL_PASSWORD",
-            "required": true,
             "secret": true
           }
         ]
@@ -142,15 +146,13 @@
       "key": "secret_key",
       "title": "Secret encryption key",
       "description": "Symmetric key (any non-empty string) used to encrypt registered_arr.api_key at rest. Rotating this key invalidates all stored API keys.",
-      "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"minLength\":16}},\"required\":[\"value\"]}",
-      "required": true,
+      "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"minLength\":16}}}",
       "admin_form": {
         "fields": [
           {
             "key": "value",
             "label": "Encryption key (min 16 chars)",
             "control": "ADMIN_FORM_CONTROL_PASSWORD",
-            "required": true,
             "secret": true
           }
         ]

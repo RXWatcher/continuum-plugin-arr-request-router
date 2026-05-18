@@ -114,13 +114,7 @@ func loadConfig(entries []*pluginv1.ConfigEntry) (Config, error) {
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("database_url is required")
 	}
-	if cfg.TMDBAPIKey == "" {
-		return Config{}, fmt.Errorf("tmdb.api_key is required")
-	}
-	if cfg.SecretKey == "" {
-		return Config{}, fmt.Errorf("secret_key is required")
-	}
-	if len(cfg.SecretKey) < minSecretKeyLength {
+	if cfg.SecretKey != "" && len(cfg.SecretKey) < minSecretKeyLength {
 		return Config{}, fmt.Errorf("secret_key must be at least %d characters", minSecretKeyLength)
 	}
 

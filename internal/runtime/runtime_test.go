@@ -91,31 +91,31 @@ func TestLoadConfigMissingDatabaseURLErrors(t *testing.T) {
 	}
 }
 
-func TestLoadConfigMissingTMDBAPIKeyErrors(t *testing.T) {
+func TestLoadConfigMissingTMDBAPIKeyAllowed(t *testing.T) {
 	entries := []*pluginv1.ConfigEntry{
 		makeEntry("database_url", map[string]any{"value": "postgres://host/db"}),
 		makeEntry("secret_key", map[string]any{"value": "exactly16charkey"}),
 	}
-	_, err := loadConfig(entries)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	cfg, err := loadConfig(entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "tmdb.api_key") {
-		t.Errorf("error %q does not mention tmdb.api_key", err.Error())
+	if cfg.TMDBAPIKey != "" {
+		t.Errorf("TMDBAPIKey = %q, want empty", cfg.TMDBAPIKey)
 	}
 }
 
-func TestLoadConfigMissingSecretKeyErrors(t *testing.T) {
+func TestLoadConfigMissingSecretKeyAllowed(t *testing.T) {
 	entries := []*pluginv1.ConfigEntry{
 		makeEntry("database_url", map[string]any{"value": "postgres://host/db"}),
 		makeEntry("tmdb.api_key", map[string]any{"value": "apikey"}),
 	}
-	_, err := loadConfig(entries)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	cfg, err := loadConfig(entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "secret_key") {
-		t.Errorf("error %q does not mention secret_key", err.Error())
+	if cfg.SecretKey != "" {
+		t.Errorf("SecretKey = %q, want empty", cfg.SecretKey)
 	}
 }
 
