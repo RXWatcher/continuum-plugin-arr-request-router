@@ -1,6 +1,6 @@
 {
   "plugin_id": "continuum.arrouter",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "checksum": "__CHECKSUM__",
   "continuum_api_version": "v1",
   "capabilities": [
@@ -34,9 +34,27 @@
     }
   ],
   "http_routes": [
-    {"id": "api",    "method": "*",   "path": "/api/admin/*", "access": "admin"},
-    {"id": "assets", "method": "GET", "path": "/assets/*",    "access": "public"},
-    {"id": "spa",    "method": "GET", "path": "/admin/*",     "access": "admin", "navigable": true, "navigation_label": "Request Routing", "navigation_kind": "admin"}
+    {
+      "id": "api",
+      "method": "*",
+      "path": "/api/admin/*",
+      "access": "admin"
+    },
+    {
+      "id": "assets",
+      "method": "GET",
+      "path": "/assets/*",
+      "access": "public"
+    },
+    {
+      "id": "spa",
+      "method": "GET",
+      "path": "/admin/*",
+      "access": "admin",
+      "navigable": true,
+      "navigation_label": "Request Routing",
+      "navigation_kind": "admin"
+    }
   ],
   "global_config_schema": [
     {
