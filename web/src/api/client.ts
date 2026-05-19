@@ -1,4 +1,4 @@
-import type { RegisteredArr, RequestRow, RouteTestResult, Rules, SystemStatus } from './types';
+import type { AppConfig, RegisteredArr, RequestRow, RouteTestResult, Rules, SystemStatus } from './types';
 import { mountPath } from '../lib/mountPath';
 import { getCachedToken } from '../lib/auth';
 
@@ -29,6 +29,15 @@ async function noContentOrThrow(r: Response): Promise<void> {
 }
 
 export const api = {
+  config: () => authedFetch(`${apiBase()}/config`).then(jsonOrThrow<AppConfig>),
+
+  updateConfig: (config: AppConfig) =>
+    authedFetch(`${apiBase()}/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    }).then(jsonOrThrow<AppConfig>),
+
   listArrs: () => authedFetch(`${apiBase()}/registry`).then(jsonOrThrow<RegisteredArr[]>),
 
   getArr: (id: number) =>

@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +23,7 @@ type Deps struct {
 	Events    *event.Publisher
 	Poll      *poll.Poller            // exposed for future "poll now" admin button
 	Submit    *consumer.SubmitHandler // for retry / re-route in Task 9.5
+	OnConfig  func(context.Context, store.AppConfig) error
 	SecretKey string
 	WebFS     http.FileSystem // dist/ embedded SPA — populated by Task 11.3
 }
@@ -48,6 +51,8 @@ func (s *Server) Handler() http.Handler {
 
 	r.Route("/api/admin", func(r chi.Router) {
 		r.Use(requireAdmin)
+		r.Get("/config", s.handleGetConfig)
+		r.Put("/config", s.handlePutConfig)
 		r.Route("/registry", s.registryRoutes)
 		r.Post("/route-test", s.handleRouteTest)
 		r.Route("/requests", s.requestsRoutes)
@@ -74,4 +79,33 @@ func requireAdmin(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	cfg, err := s.deps.Store.GetAppConfig(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
+	var cfg store.AppConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		http.Error(w, "bad json", http.StatusBadRequest)
+		return
+	}
+	cfg = store.NormalizeAppConfig(cfg)
+	if err := s.deps.Store.UpsertAppConfig(r.Context(), cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if s.deps.OnConfig != nil {
+		if err := s.deps.OnConfig(r.Context(), cfg); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, cfg)
 }

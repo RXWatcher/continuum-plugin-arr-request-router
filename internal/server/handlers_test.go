@@ -95,6 +95,59 @@ func TestRequireAdminAllowsAdmin(t *testing.T) {
 	}
 }
 
+// ---- App config ----
+
+func TestGetConfigReturnsStoredAppConfig(t *testing.T) {
+	handler, st := newTestServer(t)
+	want := store.AppConfig{
+		TMDBAPIKey:          "tmdb-key",
+		TMDBLanguage:        "fr-FR",
+		PollIntervalSeconds: 45,
+		StaleAfterHours:     96,
+		SecretKey:           "a-secret-key-that-is-long-enough",
+	}
+	if err := st.UpsertAppConfig(t.Context(), want); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	w := do(handler, adminReq("GET", "/api/admin/config", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	var got store.AppConfig
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got != want {
+		t.Fatalf("config = %+v, want %+v", got, want)
+	}
+}
+
+func TestPutConfigPersistsAppConfig(t *testing.T) {
+	handler, st := newTestServer(t)
+	body := mustJSON(t, store.AppConfig{
+		TMDBAPIKey:          "tmdb-key",
+		TMDBLanguage:        "fr-FR",
+		PollIntervalSeconds: 45,
+		StaleAfterHours:     96,
+		SecretKey:           "a-secret-key-that-is-long-enough",
+	})
+
+	w := do(handler, adminReq("PUT", "/api/admin/config", body))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	got, err := st.GetAppConfig(t.Context())
+	if err != nil {
+		t.Fatalf("get config: %v", err)
+	}
+	if got.TMDBAPIKey != "tmdb-key" || got.TMDBLanguage != "fr-FR" ||
+		got.PollIntervalSeconds != 45 || got.StaleAfterHours != 96 ||
+		got.SecretKey != "a-secret-key-that-is-long-enough" {
+		t.Fatalf("stored config = %+v", got)
+	}
+}
+
 // ---- List ----
 
 func TestRegistryListReturnsRowsOrderedByKindPriority(t *testing.T) {

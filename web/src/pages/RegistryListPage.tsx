@@ -1,11 +1,14 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Blocks, MoreHorizontal, Pencil, Plug, Trash2 } from "lucide-react";
+import { Plus, Blocks, MoreHorizontal, Pencil, Plug, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/api/client";
-import type { RegisteredArr } from "@/api/types";
+import type { AppConfig, RegisteredArr } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -26,6 +29,10 @@ export default function RegistryListPage() {
     queryKey: ["arrs"],
     queryFn: api.listArrs,
   });
+  const configQuery = useQuery({
+    queryKey: ["config"],
+    queryFn: api.config,
+  });
 
   return (
     <div className="space-y-6">
@@ -43,6 +50,18 @@ export default function RegistryListPage() {
           </Link>
         </Button>
       </div>
+
+      {configQuery.data ? (
+        <ConfigPanel config={configQuery.data} />
+      ) : configQuery.isLoading ? (
+        <div className="text-muted-foreground bg-card border-border/70 rounded-2xl border p-6 text-sm">
+          Loading settings…
+        </div>
+      ) : configQuery.error ? (
+        <div className="text-destructive bg-card border-border/70 rounded-2xl border p-6 text-sm">
+          Failed to load settings: {(configQuery.error as Error).message}
+        </div>
+      ) : null}
 
       <div className="bg-card border-border/70 rounded-2xl border p-1">
         {isLoading && (
@@ -90,6 +109,106 @@ export default function RegistryListPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function ConfigPanel({ config }: { config: AppConfig }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState<AppConfig>(config);
+
+  useEffect(() => {
+    setForm(config);
+  }, [config]);
+
+  const saveMutation = useMutation({
+    mutationFn: api.updateConfig,
+    onSuccess: (updated) => {
+      setForm(updated);
+      qc.setQueryData(["config"], updated);
+      toast.success("Settings saved");
+    },
+    onError: (e: Error) => toast.error(`Save failed: ${e.message}`),
+  });
+
+  const setText = (key: keyof AppConfig) => (value: string) => {
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+  const setNumber = (key: keyof AppConfig) => (value: string) => {
+    setForm((current) => ({ ...current, [key]: value === "" ? 0 : Number(value) }));
+  };
+
+  return (
+    <section className="bg-card border-border/70 rounded-2xl border p-6">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold">Router settings</h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            TMDB enrichment, polling, and stored credential encryption.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          disabled={saveMutation.isPending}
+          onClick={() => saveMutation.mutate(form)}
+        >
+          <Save className="size-4" />
+          Save
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="tmdb_api_key">TMDB API key</Label>
+          <Input
+            id="tmdb_api_key"
+            type="password"
+            value={form.tmdb_api_key}
+            onChange={(e) => setText("tmdb_api_key")(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="tmdb_language">TMDB language</Label>
+          <Input
+            id="tmdb_language"
+            value={form.tmdb_language}
+            onChange={(e) => setText("tmdb_language")(e.target.value)}
+            placeholder="en-US"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="poll_interval_seconds">Poll interval seconds</Label>
+          <Input
+            id="poll_interval_seconds"
+            type="number"
+            min={10}
+            max={600}
+            value={form.poll_interval_seconds}
+            onChange={(e) => setNumber("poll_interval_seconds")(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="stale_after_hours">Stale after hours</Label>
+          <Input
+            id="stale_after_hours"
+            type="number"
+            min={1}
+            value={form.stale_after_hours}
+            onChange={(e) => setNumber("stale_after_hours")(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="secret_key">Secret encryption key</Label>
+          <Input
+            id="secret_key"
+            type="password"
+            value={form.secret_key}
+            onChange={(e) => setText("secret_key")(e.target.value)}
+          />
+          <p className="text-muted-foreground text-xs">
+            Changing this key prevents existing registered API keys from decrypting.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -49,11 +49,11 @@ func main() {
 	httpSrv := httproutes.NewServer()
 
 	var (
-		poolPtr    atomic.Pointer[pgxpool.Pool]
-		storePtr   atomic.Pointer[store.Store]
-		eventsPtr  atomic.Pointer[event.Publisher]
-		submitPtr  atomic.Pointer[consumer.SubmitHandler]
-		cancelPtr  atomic.Pointer[consumer.CancelHandler]
+		poolPtr   atomic.Pointer[pgxpool.Pool]
+		storePtr  atomic.Pointer[store.Store]
+		eventsPtr atomic.Pointer[event.Publisher]
+		submitPtr atomic.Pointer[consumer.SubmitHandler]
+		cancelPtr atomic.Pointer[consumer.CancelHandler]
 	)
 
 	// pollLoopMu guards the cancel func for the background poll goroutine.
@@ -155,51 +155,73 @@ func main() {
 
 		s := store.New(p)
 		ev := event.New(sdkruntime.Host(), logger.Named("event"))
-
-		tmdbClient := tmdb.New("https://api.themoviedb.org/3", cfg.TMDBAPIKey, cfg.TMDBLanguage)
-		enricher := tmdb.NewCache(tmdbClient, 24*time.Hour)
-
-		submitH := &consumer.SubmitHandler{
-			Store:     s,
-			Enricher:  enricher,
-			Radarr:    radarrFactory,
-			Sonarr:    sonarrFactory,
-			Events:    ev,
-			SecretKey: cfg.SecretKey,
-			Log:       logger.Named("submit"),
-		}
-		cancelH := &consumer.CancelHandler{
-			Store:     s,
-			Radarr:    radarrFactory,
-			Sonarr:    sonarrFactory,
-			Events:    ev,
-			SecretKey: cfg.SecretKey,
-			Log:       logger.Named("cancel"),
-		}
-
-		mux := server.New(&server.Deps{
-			Store:     s,
-			Enricher:  enricher,
-			Events:    ev,
-			Poll:      poller,
-			Submit:    submitH,
-			SecretKey: cfg.SecretKey,
-			WebFS:     web.FS(),
-		})
-		httpSrv.SetHandler(mux.Handler())
-
 		storePtr.Store(s)
 		eventsPtr.Store(ev)
-		submitPtr.Store(submitH)
-		cancelPtr.Store(cancelH)
 
-		snap := &pollCfgSnapshot{
-			staleAfterHours: cfg.StaleAfterHours,
-			secretKey:       cfg.SecretKey,
+		if _, err := s.ImportLegacyAppConfig(ctx, appConfigFromRuntime(cfg)); err != nil {
+			p.Close()
+			return fmt.Errorf("import legacy app config: %w", err)
 		}
-		pollCfgPtr.Store(snap)
+		appCfg, err := s.GetAppConfig(ctx)
+		if err != nil {
+			p.Close()
+			return fmt.Errorf("get app config: %w", err)
+		}
 
-		startPollLoop(time.Duration(cfg.PollIntervalSeconds) * time.Second)
+		deps := &server.Deps{
+			Store:  s,
+			Events: ev,
+			Poll:   poller,
+			WebFS:  web.FS(),
+		}
+
+		applyAppConfig := func(_ context.Context, appCfg store.AppConfig) error {
+			appCfg = store.NormalizeAppConfig(appCfg)
+			tmdbClient := tmdb.New("https://api.themoviedb.org/3", appCfg.TMDBAPIKey, appCfg.TMDBLanguage)
+			enricher := tmdb.NewCache(tmdbClient, 24*time.Hour)
+
+			submitH := &consumer.SubmitHandler{
+				Store:     s,
+				Enricher:  enricher,
+				Radarr:    radarrFactory,
+				Sonarr:    sonarrFactory,
+				Events:    ev,
+				SecretKey: appCfg.SecretKey,
+				Log:       logger.Named("submit"),
+			}
+			cancelH := &consumer.CancelHandler{
+				Store:     s,
+				Radarr:    radarrFactory,
+				Sonarr:    sonarrFactory,
+				Events:    ev,
+				SecretKey: appCfg.SecretKey,
+				Log:       logger.Named("cancel"),
+			}
+
+			deps.Enricher = enricher
+			deps.Submit = submitH
+			deps.SecretKey = appCfg.SecretKey
+
+			submitPtr.Store(submitH)
+			cancelPtr.Store(cancelH)
+
+			snap := &pollCfgSnapshot{
+				staleAfterHours: appCfg.StaleAfterHours,
+				secretKey:       appCfg.SecretKey,
+			}
+			pollCfgPtr.Store(snap)
+			startPollLoop(time.Duration(appCfg.PollIntervalSeconds) * time.Second)
+			return nil
+		}
+
+		deps.OnConfig = applyAppConfig
+		if err := applyAppConfig(ctx, appCfg); err != nil {
+			p.Close()
+			return err
+		}
+
+		mux := server.New(deps)
+		httpSrv.SetHandler(mux.Handler())
 
 		if old := poolPtr.Swap(p); old != nil {
 			old.Close()
@@ -226,6 +248,16 @@ func main() {
 			ScheduledTask: scheduled,
 		},
 	})
+}
+
+func appConfigFromRuntime(cfg pluginrt.Config) store.AppConfig {
+	return store.AppConfig{
+		TMDBAPIKey:          cfg.TMDBAPIKey,
+		TMDBLanguage:        cfg.TMDBLanguage,
+		PollIntervalSeconds: cfg.PollIntervalSeconds,
+		StaleAfterHours:     cfg.StaleAfterHours,
+		SecretKey:           cfg.SecretKey,
+	}
 }
 
 // lazySubmitter implements consumer.Submitter by checking the atomic pointer

@@ -50,3 +50,11 @@ export interface SystemStatus {
   appName?: string;
   branch?: string;
 }
+
+export interface AppConfig {
+  tmdb_api_key: string;
+  tmdb_language: string;
+  poll_interval_seconds: number;
+  stale_after_hours: number;
+  secret_key: string;
+}
