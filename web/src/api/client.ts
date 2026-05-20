@@ -1,4 +1,4 @@
-import type { AppConfig, RegisteredArr, RequestRow, RouteTestResult, Rules, SystemStatus } from './types';
+import type { AppConfig, RegisteredArr, RequestRow, RouteTestResult, Rules, SystemStatus, TargetHealth } from './types';
 import { mountPath } from '../lib/mountPath';
 import { getCachedToken } from '../lib/auth';
 
@@ -97,6 +97,9 @@ export const api = {
     authedFetch(`${apiBase()}/requests/${id}/force-fail`, { method: 'POST' }).then(
       noContentOrThrow,
     ),
+
+  targetsHealth: () =>
+    authedFetch(`${apiBase()}/targets/health`).then(jsonOrThrow<TargetHealth[]>),
 };
 
 // Re-exported for ad-hoc tests of URL composition.

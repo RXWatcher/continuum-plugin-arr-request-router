@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Info, Plus, Trash2 } from "lucide-react";
 import type { Combinator, Group, Kind, Op, Rule, Rules } from "@/api/types";
 import {
   fieldsForKind,
@@ -8,6 +8,7 @@ import {
   type FieldGroup,
 } from "@/lib/fieldCatalog";
 import { emptyGroup, emptyRule } from "@/lib/rules";
+import { lintRules } from "@/lib/lintRules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -405,6 +406,8 @@ export default function RuleBuilder({
   const removeGroup = (gi: number) =>
     onChange({ ...value, groups: groups.filter((_, i) => i !== gi) });
 
+  const lints = lintRules(value, kind);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -424,6 +427,28 @@ export default function RuleBuilder({
             : `${groups.length} group${groups.length === 1 ? "" : "s"} defined.`}
         </p>
       </div>
+
+      {lints.length > 0 && (
+        <ul className="space-y-2">
+          {lints.map((l, i) => {
+            const isWarn = l.severity === "warn";
+            const Icon = isWarn ? AlertTriangle : Info;
+            return (
+              <li
+                key={i}
+                className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs ${
+                  isWarn
+                    ? "border-warning/30 bg-warning/10 text-warning-foreground"
+                    : "border-border bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                <Icon className="mt-0.5 size-3.5 shrink-0" />
+                <span>{l.message}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {groups.length > 0 && (
         <Accordion type="multiple" className="space-y-3">

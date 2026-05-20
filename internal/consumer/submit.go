@@ -61,7 +61,14 @@ func (h *SubmitHandler) Submit(ctx context.Context, ev routing.RequestEvent) err
 	}
 
 	chosen, trace := routing.Decide(ctx, candidates, ev, h.Enricher)
-	traceJSON, _ := json.Marshal(trace)
+	traceJSON, err := json.Marshal(trace)
+	if err != nil {
+		// Trace is always JSON-encodable in practice, but log instead of
+		// dropping silently — a silent encode failure would erase the
+		// per-request debugging breadcrumb stored in the request row.
+		h.Log.Warn("marshal route trace failed; persisting empty trace", "id", ev.RequestID, "err", err)
+		traceJSON = []byte("{}")
+	}
 
 	if chosen == nil {
 		if err := h.Store.MarkUnrouted(ctx, ev.RequestID, traceJSON, "no registered *arr matched"); err != nil {

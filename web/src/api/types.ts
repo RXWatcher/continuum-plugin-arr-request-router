@@ -58,3 +58,24 @@ export interface AppConfig {
   stale_after_hours: number;
   secret_key: string;
 }
+
+export type ProbeStatus = "reachable" | "unauthorized" | "unreachable" | "skipped";
+
+export interface TargetHealth {
+  id: number;
+  name: string;
+  kind: Kind;
+  url: string;
+  enabled: boolean;
+  priority: number;
+  probe: ProbeStatus;
+  probeLatencyMs: number;
+  probeError?: string;
+  version?: string;
+  submitted24h: number;
+  failed24h: number;
+  imported24h: number;
+  lastSubmittedAt?: string;
+  lastFailureAt?: string;
+  lastFailureMsg?: string;
+}

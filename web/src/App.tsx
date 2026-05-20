@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import RegistryListPage from "./pages/RegistryListPage";
 import RegistryEditorPage from "./pages/RegistryEditorPage";
 import RequestsQueuePage from "./pages/RequestsQueuePage";
+import TargetsHealthPage from "./pages/TargetsHealthPage";
 import { Toaster } from "./components/ui/sonner";
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/registry/new" element={<RegistryEditorPage />} />
           <Route path="/registry/:id" element={<RegistryEditorPage />} />
           <Route path="/queue" element={<RequestsQueuePage />} />
+          <Route path="/health" element={<TargetsHealthPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

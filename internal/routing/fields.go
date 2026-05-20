@@ -75,6 +75,7 @@ var fieldRegistry = map[string]FieldGroup{
 	// Group A — event payload
 	"mediaType":        GroupA,
 	"libraryId":        GroupA,
+	"library":          GroupA, // alias for libraryId — used in some rule-builder UIs
 	"year":             GroupA,
 	"decade":           GroupA,
 	"requesterUserId":  GroupA,
@@ -181,7 +182,7 @@ func getGroupAField(ctx Context, name string) (any, bool) {
 	switch name {
 	case "mediaType":
 		return ctx.Event.MediaType, true
-	case "libraryId":
+	case "libraryId", "library":
 		return ctx.Event.LibraryID, true
 	case "year":
 		return ctx.Event.Year, true

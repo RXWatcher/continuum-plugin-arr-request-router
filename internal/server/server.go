@@ -56,6 +56,7 @@ func (s *Server) Handler() http.Handler {
 		r.Route("/registry", s.registryRoutes)
 		r.Post("/route-test", s.handleRouteTest)
 		r.Route("/requests", s.requestsRoutes)
+		r.Get("/targets/health", s.handleTargetsHealth)
 	})
 
 	r.Get("/admin", s.handleSPA)

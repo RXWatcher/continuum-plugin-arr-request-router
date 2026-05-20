@@ -9,7 +9,6 @@ import (
 	"net/url"
 )
 
-// Sonarr is the v3 Sonarr client. Construct with NewSonarr.
 type Sonarr struct {
 	httpClient
 }
@@ -18,7 +17,6 @@ func NewSonarr(baseURL, apiKey string) *Sonarr {
 	return &Sonarr{httpClient: newHTTPClient(baseURL, apiKey)}
 }
 
-// Series is the subset of /api/v3/series we read from Sonarr.
 type Series struct {
 	ID                int    `json:"id"`
 	Title             string `json:"title"`
@@ -36,7 +34,6 @@ type Series struct {
 	} `json:"statistics"`
 }
 
-// AddSeriesRequest is the request body for POST /api/v3/series.
 type AddSeriesRequest struct {
 	Title             string         `json:"title"`
 	Year              int            `json:"year"`
@@ -50,8 +47,6 @@ type AddSeriesRequest struct {
 	AddOptions        map[string]any `json:"addOptions"`
 }
 
-// LookupSeriesByTMDB tries lookup by tmdb:N first; if no match, falls back to
-// title-based lookup using whatever caller passes as fallbackTerm.
 func (s *Sonarr) LookupSeriesByTMDB(ctx context.Context, tmdbID int, fallbackTerm string) (Series, error) {
 	if hit, err := s.lookupSeries(ctx, fmt.Sprintf("tmdb:%d", tmdbID), tmdbID); err == nil {
 		return hit, nil
@@ -88,7 +83,6 @@ func (s *Sonarr) lookupSeries(ctx context.Context, term string, tmdbID int) (Ser
 	return hits[0], nil
 }
 
-// AddSeries creates a series in Sonarr.
 func (s *Sonarr) AddSeries(ctx context.Context, req AddSeriesRequest) (Series, error) {
 	body, err := s.do(ctx, http.MethodPost, "/api/v3/series", nil, req)
 	if err != nil {
@@ -101,7 +95,6 @@ func (s *Sonarr) AddSeries(ctx context.Context, req AddSeriesRequest) (Series, e
 	return out, nil
 }
 
-// GetSeries fetches a series by Sonarr's internal id.
 func (s *Sonarr) GetSeries(ctx context.Context, id int) (Series, error) {
 	body, err := s.do(ctx, http.MethodGet, fmt.Sprintf("/api/v3/series/%d", id), nil, nil)
 	if err != nil {
@@ -118,7 +111,6 @@ func (s *Sonarr) GetSeries(ctx context.Context, id int) (Series, error) {
 	return out, nil
 }
 
-// DeleteSeries removes a series. Files and exclusion list are preserved.
 func (s *Sonarr) DeleteSeries(ctx context.Context, id int) error {
 	q := url.Values{}
 	q.Set("deleteFiles", "false")
@@ -134,7 +126,6 @@ func (s *Sonarr) DeleteSeries(ctx context.Context, id int) error {
 	return nil
 }
 
-// QueueBySeries returns queue items for the given series id.
 func (s *Sonarr) QueueBySeries(ctx context.Context, seriesID int) ([]QueueItem, error) {
 	q := url.Values{}
 	q.Set("seriesId", intParam(seriesID))
@@ -149,7 +140,6 @@ func (s *Sonarr) QueueBySeries(ctx context.Context, seriesID int) ([]QueueItem, 
 	return env.Records, nil
 }
 
-// RootFolders lists configured root folders.
 func (s *Sonarr) RootFolders(ctx context.Context) ([]RootFolder, error) {
 	body, err := s.do(ctx, http.MethodGet, "/api/v3/rootfolder", nil, nil)
 	if err != nil {
@@ -162,7 +152,6 @@ func (s *Sonarr) RootFolders(ctx context.Context) ([]RootFolder, error) {
 	return folders, nil
 }
 
-// QualityProfiles lists configured quality profiles.
 func (s *Sonarr) QualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	body, err := s.do(ctx, http.MethodGet, "/api/v3/qualityprofile", nil, nil)
 	if err != nil {
@@ -175,7 +164,6 @@ func (s *Sonarr) QualityProfiles(ctx context.Context) ([]QualityProfile, error) 
 	return profiles, nil
 }
 
-// LanguageProfiles lists configured language profiles. Sonarr v3 only.
 func (s *Sonarr) LanguageProfiles(ctx context.Context) ([]LanguageProfile, error) {
 	body, err := s.do(ctx, http.MethodGet, "/api/v3/languageprofile", nil, nil)
 	if err != nil {

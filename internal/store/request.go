@@ -239,6 +239,64 @@ ORDER BY id`
 	return scanRequests(rows)
 }
 
+// ArrHealthRow is one row of TargetHealth: per-arr counters and the most
+// recent failure message, aggregated across all requests routed to that arr.
+// Counters use a rolling 24h window so a single old failure does not pin the
+// arr as "unhealthy" forever.
+type ArrHealthRow struct {
+	ArrID             int64
+	Submitted24h      int
+	Failed24h         int
+	Imported24h       int
+	LastSubmittedAt   *time.Time
+	LastFailureAt     *time.Time
+	LastFailureReason string
+}
+
+// TargetHealth returns one ArrHealthRow per arr that has handled at least one
+// request in the trailing 24h. Arrs with no recent traffic are omitted; the
+// caller merges these with the full registry so each registered arr surfaces
+// with zero counters.
+func (s *Store) TargetHealth(ctx context.Context) ([]ArrHealthRow, error) {
+	const q = `
+SELECT
+  routed_arr_id,
+  SUM(CASE WHEN status IN ('submitted','downloading','imported') THEN 1 ELSE 0 END)::int,
+  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END)::int,
+  SUM(CASE WHEN status = 'imported' THEN 1 ELSE 0 END)::int,
+  MAX(submitted_at)                                              FILTER (WHERE submitted_at IS NOT NULL),
+  MAX(updated_at)                                                FILTER (WHERE status = 'failed'),
+  (ARRAY_AGG(error ORDER BY updated_at DESC) FILTER (WHERE status = 'failed' AND error IS NOT NULL AND error <> ''))[1]
+FROM request
+WHERE routed_arr_id IS NOT NULL
+  AND updated_at > now() - interval '24 hours'
+GROUP BY routed_arr_id`
+
+	rows, err := s.pool.Query(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("store.TargetHealth: %w", err)
+	}
+	defer rows.Close()
+
+	var out []ArrHealthRow
+	for rows.Next() {
+		var r ArrHealthRow
+		var lastFailureReason *string
+		if err := rows.Scan(
+			&r.ArrID,
+			&r.Submitted24h, &r.Failed24h, &r.Imported24h,
+			&r.LastSubmittedAt, &r.LastFailureAt, &lastFailureReason,
+		); err != nil {
+			return nil, fmt.Errorf("store.TargetHealth scan: %w", err)
+		}
+		if lastFailureReason != nil {
+			r.LastFailureReason = *lastFailureReason
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // UpdateLastPolled sets last_polled_at on the request row. It deliberately does
 // NOT touch updated_at to avoid noise in change-tracking queries.
 func (s *Store) UpdateLastPolled(ctx context.Context, id string, t time.Time) error {

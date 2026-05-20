@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router";
-import { ArrowLeft, Blocks, ListChecks } from "lucide-react";
+import { ArrowLeft, Activity, Blocks, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Plain anchor (not router Link) so the browser does a full-page nav out of
@@ -55,6 +55,20 @@ export default function Layout() {
           >
             <ListChecks className="size-4" />
             Queue
+          </NavLink>
+          <NavLink
+            to="/health"
+            className={({ isActive }) =>
+              cn(
+                "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-surface text-foreground"
+                  : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+              )
+            }
+          >
+            <Activity className="size-4" />
+            Health
           </NavLink>
         </nav>
       </header>
