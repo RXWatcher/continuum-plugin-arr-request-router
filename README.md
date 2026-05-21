@@ -1,39 +1,57 @@
 # Arr Request Router for Continuum
 
-`continuum.arrouter` is a rule-based router for Continuum movie and TV
-requests. It receives approved requests from `continuum.requests`, evaluates
-operator-defined rules, and sends each request to the first matching Radarr or
-Sonarr target.
+`continuum.arrouter` is a rule-based request router that consumes request events from [`continuum-plugin-requests`](https://github.com/RXWatcher/continuum-plugin-requests) and forwards each request to one of N registered Radarr/Sonarr instances based on operator-defined rules.
 
-Use this plugin when one Arr stack is not enough: multiple quality tiers,
-language-specific instances, separate 4K targets, regional libraries, or
-requester/group based routing.
+Use it when one Arr stack is not enough: multiple quality tiers, language- or region-specific instances, separate 4K targets, or requester/group based routing.
 
-## Detailed Operations Docs
+## Category
 
-- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+Lives under **Requests**.
 
-## Features
+Install at most one of [`continuum-plugin-arr-proxy`](https://github.com/RXWatcher/continuum-plugin-arr-proxy) or `continuum-plugin-arr-request-router` per Continuum installation. They both fulfil the `request_router` capability — `arr-proxy` fronts a single Arr Proxy backend, while this plugin selects across N directly-registered Radarr/Sonarr instances.
 
-- Consumes submitted and cancelled request events from `continuum.requests`.
-- Maintains an admin-managed registry of Radarr and Sonarr targets.
-- Encrypts stored target API keys at rest.
-- Enriches requests with TMDB metadata for rule evaluation.
-- Routes requests by priority to the first enabled matching target.
-- Polls routed targets for download and import progress.
-- Provides an admin SPA for targets, rules, route testing, queue visibility,
-  retry, and reroute operations.
+## Capabilities
+
+| Type | ID | Purpose |
+| --- | --- | --- |
+| `event_consumer.v1` | `router` | Subscribes to submitted and cancelled request events from `continuum.requests` and dispatches them to the chosen Radarr/Sonarr. |
+| `scheduled_task.v1` | `poll` | Polls registered Radarr/Sonarr instances for download/import progress and publishes lifecycle events. |
+| `http_routes.v1` | `admin` | Admin SPA for managing the arr registry, rules, queue, and route testing. |
+| `request_router.v1` | `default` | Declares this plugin as the rule-based router for the Requests category. |
+
+## Dependencies
+
+- Consumes `plugin.continuum.requests.submitted` and `plugin.continuum.requests.cancelled` from [`continuum-plugin-requests`](https://github.com/RXWatcher/continuum-plugin-requests).
+- Manages N external Radarr and Sonarr instances directly via their HTTP APIs; no separate Arr Proxy backend.
+- Requires a dedicated Postgres schema (`arrouter`) for the arr registry, request state, and rule storage.
+
+Host: [`ContinuumApp/continuum`](https://github.com/ContinuumApp/continuum). SDK: [`ContinuumApp/continuum-plugin-sdk`](https://github.com/ContinuumApp/continuum-plugin-sdk).
+
+## External services
+
+- **Radarr / Sonarr** — one or more instances registered through the admin UI; the plugin calls each instance's HTTP API to dispatch lookups, add requests, poll status, and cancel/delete.
+- **TMDB v3** — used to enrich each request with metadata (primary movie/TV record, keywords, content rating) so rules can match on genres, language, runtime, ratings, networks, and so on.
+
+## Routing rules
+
+Each registered arr stores a JSON rules document with a top-level `match` combinator (`all` or `any`) and a list of groups; each group has its own combinator and a list of `(field, op, value)` predicates. Fields cover the request event itself (`mediaType`, `libraryId`, `year`, `decade`, `title`, `tmdbId`, `requesterUserId`, `requesterIsAdmin`) and TMDB-enriched data (`original_language`, `genres`, `runtime`, `vote_average`, `popularity`, movie-only fields like `release_date`/`imdb_id`, TV-only fields like `networks`/`number_of_seasons`, plus `keywords` and `content_rating`).
+
+Candidates are filtered by kind (`movie` → Radarr, `tv` → Sonarr), sorted by `(priority ASC, id ASC)`, and evaluated in order. The first enabled candidate whose rules match wins; an empty rules document matches everything and is the natural shape for a catch-all lowest-priority target. TMDB enrichment is lazy — only the API calls referenced by candidate rules are issued for any given request. Every decision produces a diagnostic trace (per-candidate match result, group results, TMDB errors) that drives the admin route-test UI.
+
+## Arr registry
+
+Registered arrs are stored in the `registered_arr` table with their name, kind (`radarr`|`sonarr`), base URL, root folder, quality profile, optional Sonarr language profile, priority, enabled flag, and rules JSON. API keys are encrypted at rest with AES-256-GCM via `internal/crypto/secret.go`; the AES key is derived from the `secret_key` app-config value (SHA-256 of the configured string). API keys are never echoed back from the admin API — responses expose a boolean `has_api_key` instead. Rotating `secret_key` invalidates every stored arr API key, which must then be re-entered.
 
 ## Configuration
 
 | Key | Required | Description |
-|---|---|---|
-| `database_url` | yes | Postgres DSN for the `arrouter` schema. |
-| `tmdb.api_key` | yes | TMDB v3 API key for metadata enrichment. |
-| `tmdb.language` | no | TMDB language tag. Defaults to `en-US`. |
-| `poll_interval_seconds` | no | Poll interval in seconds. |
-| `stale_after_hours` | no | Time before stuck requests are marked failed. |
-| `secret_key` | yes | Symmetric key used to encrypt registered target API keys. Rotating it invalidates stored target keys. |
+| --- | --- | --- |
+| `database_url` | yes | Postgres DSN for the dedicated `arrouter` schema (host-managed bootstrap config). |
+| `tmdb.api_key` | yes | TMDB v3 API key used for metadata enrichment when evaluating rules. |
+| `tmdb.language` | no | TMDB language tag for localised titles and content ratings. Defaults to `en-US`. |
+| `poll_interval_seconds` | no | Interval between background polls of registered arrs. Defaults to 30; clamped to 10–600. |
+| `stale_after_hours` | no | Age after which an in-flight request is marked failed. Defaults to 72. |
+| `secret_key` | yes | Symmetric key used to encrypt registered arr API keys at rest. Auto-generated on first start if not provided; rotating it invalidates all stored arr API keys. |
 
 Example DSN:
 
@@ -41,7 +59,7 @@ Example DSN:
 postgres://plugin_arrouter:password@postgres:5432/continuum?search_path=arrouter&sslmode=disable
 ```
 
-## Database Setup
+Bootstrap the schema with:
 
 ```sql
 CREATE ROLE plugin_arrouter WITH LOGIN PASSWORD '<chosen>';
@@ -49,20 +67,32 @@ CREATE SCHEMA arrouter AUTHORIZATION plugin_arrouter;
 GRANT CONNECT ON DATABASE continuum TO plugin_arrouter;
 ```
 
-## Routing Model
+## Event subscriptions
 
-Each registered target stores type, base URL, encrypted API key, root folder,
-quality profile, optional Sonarr language profile, priority, enabled state, and
-rules JSON. Rules can match the original request and enriched TMDB metadata,
-including title, year, genres, keywords, content ratings, requester attributes,
-and library context.
+- `plugin.continuum.requests.submitted` — upserts a `queued` request row, enriches via TMDB, evaluates routing rules, dispatches to the chosen Radarr/Sonarr, and emits a `submitted` or `unrouted` event.
+- `plugin.continuum.requests.cancelled` — best-effort DELETE on the routed arr (when an external ID is recorded), marks the request `cancelled` in the store, and emits `cancelled`.
 
-Lower priority numbers are evaluated first. The first enabled target whose
-rules match receives the request.
+## Event publications
 
-## Build And Test
+All events are published under the `plugin.continuum.arrouter.` prefix:
+
+- `submitted` — request was accepted and dispatched to an arr.
+- `downloading` — the routed arr has begun fetching the media.
+- `imported` — the routed arr has imported the media into the library.
+- `failed` — terminal failure; the payload includes an `error` string.
+- `cancelled` — the request was cancelled before or during download.
+- `unrouted` — no enabled registered arr matched; the payload includes an `error` string.
+
+## Detailed docs
+
+- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+- [Plugin specification](SPEC.md)
+
+## Build and release
 
 ```bash
-make build
-make test
+make build   # builds the web SPA then the Go binary
+make test    # runs Go and web tests
 ```
+
+CI builds linux-amd64 binaries on push to main via the reusable workflow in [RXWatcher/continuum-plugin-repository](https://github.com/RXWatcher/continuum-plugin-repository) and publishes them to the catalog at [`./binaries/`](https://github.com/RXWatcher/continuum-plugin-repository/tree/main/binaries).
