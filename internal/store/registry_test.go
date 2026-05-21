@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
 )
 
 // sampleArr returns a minimal RegisteredArr suitable for insertion in tests.

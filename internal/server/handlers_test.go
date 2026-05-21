@@ -14,14 +14,14 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/auth"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/crypto"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/auth"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/server"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
 )
 
 const testSecretKey = "test-secret-key-for-handlers-tests"

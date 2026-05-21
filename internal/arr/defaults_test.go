@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
 )
 
 func TestIsConflict(t *testing.T) {

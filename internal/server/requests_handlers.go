@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
 )
 
 type requestDTO struct {

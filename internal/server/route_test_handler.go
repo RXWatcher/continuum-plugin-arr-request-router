@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
 )
 
 // POST /api/admin/route-test

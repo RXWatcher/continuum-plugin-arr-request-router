@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
 )
 
 func TestGetAppConfigReturnsDefaultsAndGeneratedSecret(t *testing.T) {

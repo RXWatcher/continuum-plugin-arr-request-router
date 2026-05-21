@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
 )
 
 type fakeSubmitter struct {

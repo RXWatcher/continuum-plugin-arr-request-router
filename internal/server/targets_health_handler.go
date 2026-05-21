@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/crypto"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
 )
 
 // healthProbeTimeout caps a single SystemStatus probe; the per-arr probes

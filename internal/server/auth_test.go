@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/auth"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/auth"
 )
 
 // TestRequireAdminMissingRoleHeader verifies that a request with no

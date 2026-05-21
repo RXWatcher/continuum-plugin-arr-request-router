@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/crypto"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
 )
 
 // registryDTO is the wire shape for /api/admin/registry/*.

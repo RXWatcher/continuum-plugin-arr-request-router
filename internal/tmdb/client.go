@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
 )
 
 // Client is an HTTP client for the TMDB v3 API.

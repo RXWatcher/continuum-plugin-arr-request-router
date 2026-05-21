@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
 )
 
 // Compile-time assertion in test package too.

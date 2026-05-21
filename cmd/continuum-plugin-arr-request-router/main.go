@@ -21,17 +21,17 @@ import (
 	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
 	sdkruntime "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/httproutes"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/migrate"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/poll"
-	pluginrt "github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/runtime"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/tmdb"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/web"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/httproutes"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/migrate"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/poll"
+	pluginrt "github.com/RXWatcher/continuum-plugin-arr-request-router/internal/runtime"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/server"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/tmdb"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/web"
 )
 
 //go:embed manifest.json

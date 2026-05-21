@@ -8,12 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/auth"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/poll"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/routing"
-	"github.com/ContinuumApp/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/auth"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/poll"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
 )
 
 // Deps is the wiring this package needs from main.go.
