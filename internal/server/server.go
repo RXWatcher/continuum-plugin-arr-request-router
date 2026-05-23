@@ -8,13 +8,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/auth"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/poll"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/auth"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/poll"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
 // Deps is the wiring this package needs from main.go.
@@ -76,7 +76,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 // requireAdmin is a chi middleware that enforces the admin role. Requests
-// without the X-Continuum-User-Role: admin header are rejected with 403.
+// without the X-Silo-User-Role: admin header are rejected with 403.
 // Requests without any identity headers at all are also rejected with 403
 // (plugin host always stamps the headers; absence means unauthenticated).
 func requireAdmin(next http.Handler) http.Handler {

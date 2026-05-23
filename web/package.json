@@ -1,5 +1,5 @@
 {
-  "name": "continuum-plugin-arr-request-router-web",
+  "name": "silo-plugin-arr-request-router-web",
   "private": true,
   "version": "0.1.0",
   "type": "module",

@@ -1,4 +1,4 @@
-module github.com/RXWatcher/continuum-plugin-arr-request-router
+module github.com/RXWatcher/silo-plugin-arr-request-router
 
 go 1.26.0
 

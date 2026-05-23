@@ -5,13 +5,13 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
-// CancelHandler processes plugin.continuum.requests.cancelled events.
+// CancelHandler processes plugin.silo.requests.cancelled events.
 type CancelHandler struct {
 	Store     *store.Store
 	Radarr    func(url, apiKey string) *arr.Radarr

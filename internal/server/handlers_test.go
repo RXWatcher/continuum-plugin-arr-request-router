@@ -14,14 +14,14 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/auth"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/server"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/auth"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/server"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
 const testSecretKey = "test-secret-key-for-handlers-tests"
@@ -1358,7 +1358,7 @@ func TestPrerenderInjectsThemeFromHeader(t *testing.T) {
 	r := httptest.NewRequest("GET", "/admin/", nil)
 	r.Header.Set(auth.HeaderUserID, "user-1")
 	r.Header.Set(auth.HeaderRole, "admin")
-	r.Header.Set("X-Continuum-Theme", "arctic-frost")
+	r.Header.Set("X-Silo-Theme", "arctic-frost")
 	w := do(handler, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
@@ -1373,7 +1373,7 @@ func TestPrerenderHeaderTakesPrecedenceOverQuery(t *testing.T) {
 	r := httptest.NewRequest("GET", "/admin/?theme=query-theme", nil)
 	r.Header.Set(auth.HeaderUserID, "user-1")
 	r.Header.Set(auth.HeaderRole, "admin")
-	r.Header.Set("X-Continuum-Theme", "header-theme")
+	r.Header.Set("X-Silo-Theme", "header-theme")
 	w := do(handler, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
@@ -1421,7 +1421,7 @@ func TestPrerenderEscapesQuotesInTheme(t *testing.T) {
 	r := httptest.NewRequest("GET", "/admin/", nil)
 	r.Header.Set(auth.HeaderUserID, "user-1")
 	r.Header.Set(auth.HeaderRole, "admin")
-	r.Header.Set("X-Continuum-Theme", `mid"night"`)
+	r.Header.Set("X-Silo-Theme", `mid"night"`)
 	w := do(handler, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
@@ -1445,7 +1445,7 @@ func TestPrerenderPreservesExistingHtmlAttributes(t *testing.T) {
 	r := httptest.NewRequest("GET", "/admin/", nil)
 	r.Header.Set(auth.HeaderUserID, "user-1")
 	r.Header.Set(auth.HeaderRole, "admin")
-	r.Header.Set("X-Continuum-Theme", "cobalt-studio")
+	r.Header.Set("X-Silo-Theme", "cobalt-studio")
 	w := do(handler, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
@@ -1468,7 +1468,7 @@ func TestPrerenderPreservesMultipleHtmlAttributes(t *testing.T) {
 	r := httptest.NewRequest("GET", "/admin/", nil)
 	r.Header.Set(auth.HeaderUserID, "user-1")
 	r.Header.Set(auth.HeaderRole, "admin")
-	r.Header.Set("X-Continuum-Theme", "cobalt-studio")
+	r.Header.Set("X-Silo-Theme", "cobalt-studio")
 	w := do(handler, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())

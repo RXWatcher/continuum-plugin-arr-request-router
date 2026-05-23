@@ -5,11 +5,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/auth"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/auth"
 )
 
 // TestRequireAdminMissingRoleHeader verifies that a request with no
-// X-Continuum-User-Role header is rejected with 403. The middleware treats
+// X-Silo-User-Role header is rejected with 403. The middleware treats
 // missing identity headers as unauthenticated and falls through to the same
 // forbidden response as a non-admin role — the plugin host always stamps the
 // headers, so absence implies the request bypassed the host.

@@ -1,6 +1,6 @@
-# Arr Request Router for Continuum
+# Arr Request Router for Silo
 
-`continuum.arrouter` is a rule-based request router that consumes request events from [`continuum-plugin-requests`](https://github.com/RXWatcher/continuum-plugin-requests) and forwards each request to one of N registered Radarr/Sonarr instances based on operator-defined rules.
+`silo.arrouter` is a rule-based request router that consumes request events from [`silo-plugin-requests`](https://github.com/RXWatcher/silo-plugin-requests) and forwards each request to one of N registered Radarr/Sonarr instances based on operator-defined rules.
 
 Use it when one Arr stack is not enough: multiple quality tiers, language- or region-specific instances, separate 4K targets, or requester/group based routing.
 
@@ -8,24 +8,24 @@ Use it when one Arr stack is not enough: multiple quality tiers, language- or re
 
 Lives under **Requests**.
 
-Install at most one of [`continuum-plugin-arr-proxy`](https://github.com/RXWatcher/continuum-plugin-arr-proxy) or `continuum-plugin-arr-request-router` per Continuum installation. They both fulfil the `request_router` capability — `arr-proxy` fronts a single Arr Proxy backend, while this plugin selects across N directly-registered Radarr/Sonarr instances.
+Install at most one of [`silo-plugin-arr-proxy`](https://github.com/RXWatcher/silo-plugin-arr-proxy) or `silo-plugin-arr-request-router` per Silo installation. They both fulfil the `request_router` capability — `arr-proxy` fronts a single Arr Proxy backend, while this plugin selects across N directly-registered Radarr/Sonarr instances.
 
 ## Capabilities
 
 | Type | ID | Purpose |
 | --- | --- | --- |
-| `event_consumer.v1` | `router` | Subscribes to submitted and cancelled request events from `continuum.requests` and dispatches them to the chosen Radarr/Sonarr. |
+| `event_consumer.v1` | `router` | Subscribes to submitted and cancelled request events from `silo.requests` and dispatches them to the chosen Radarr/Sonarr. |
 | `scheduled_task.v1` | `poll` | Polls registered Radarr/Sonarr instances for download/import progress and publishes lifecycle events. |
 | `http_routes.v1` | `admin` | Admin SPA for managing the arr registry, rules, queue, and route testing. |
 | `request_router.v1` | `default` | Declares this plugin as the rule-based router for the Requests category. |
 
 ## Dependencies
 
-- Consumes `plugin.continuum.requests.submitted` and `plugin.continuum.requests.cancelled` from [`continuum-plugin-requests`](https://github.com/RXWatcher/continuum-plugin-requests).
+- Consumes `plugin.silo.requests.submitted` and `plugin.silo.requests.cancelled` from [`silo-plugin-requests`](https://github.com/RXWatcher/silo-plugin-requests).
 - Manages N external Radarr and Sonarr instances directly via their HTTP APIs; no separate Arr Proxy backend.
 - Requires a dedicated Postgres schema (`arrouter`) for the arr registry, request state, and rule storage.
 
-Host: [`ContinuumApp/continuum`](https://github.com/ContinuumApp/continuum). SDK: [`ContinuumApp/continuum-plugin-sdk`](https://github.com/ContinuumApp/continuum-plugin-sdk).
+Host: [`ContinuumApp/silo`](https://github.com/ContinuumApp/silo). SDK: [`ContinuumApp/continuum-plugin-sdk`](https://github.com/ContinuumApp/continuum-plugin-sdk).
 
 ## External services
 
@@ -56,7 +56,7 @@ Registered arrs are stored in the `registered_arr` table with their name, kind (
 Example DSN:
 
 ```text
-postgres://plugin_arrouter:password@postgres:5432/continuum?search_path=arrouter&sslmode=disable
+postgres://plugin_arrouter:password@postgres:5432/silo?search_path=arrouter&sslmode=disable
 ```
 
 Bootstrap the schema with:
@@ -64,17 +64,17 @@ Bootstrap the schema with:
 ```sql
 CREATE ROLE plugin_arrouter WITH LOGIN PASSWORD '<chosen>';
 CREATE SCHEMA arrouter AUTHORIZATION plugin_arrouter;
-GRANT CONNECT ON DATABASE continuum TO plugin_arrouter;
+GRANT CONNECT ON DATABASE silo TO plugin_arrouter;
 ```
 
 ## Event subscriptions
 
-- `plugin.continuum.requests.submitted` — upserts a `queued` request row, enriches via TMDB, evaluates routing rules, dispatches to the chosen Radarr/Sonarr, and emits a `submitted` or `unrouted` event.
-- `plugin.continuum.requests.cancelled` — best-effort DELETE on the routed arr (when an external ID is recorded), marks the request `cancelled` in the store, and emits `cancelled`.
+- `plugin.silo.requests.submitted` — upserts a `queued` request row, enriches via TMDB, evaluates routing rules, dispatches to the chosen Radarr/Sonarr, and emits a `submitted` or `unrouted` event.
+- `plugin.silo.requests.cancelled` — best-effort DELETE on the routed arr (when an external ID is recorded), marks the request `cancelled` in the store, and emits `cancelled`.
 
 ## Event publications
 
-All events are published under the `plugin.continuum.arrouter.` prefix:
+All events are published under the `plugin.silo.arrouter.` prefix:
 
 - `submitted` — request was accepted and dispatched to an arr.
 - `downloading` — the routed arr has begun fetching the media.
@@ -95,4 +95,4 @@ make build   # builds the web SPA then the Go binary
 make test    # runs Go and web tests
 ```
 
-CI builds linux-amd64 binaries on push to main via the reusable workflow in [RXWatcher/continuum-plugin-repository](https://github.com/RXWatcher/continuum-plugin-repository) and publishes them to the catalog at [`./binaries/`](https://github.com/RXWatcher/continuum-plugin-repository/tree/main/binaries).
+CI builds linux-amd64 binaries on push to main via the reusable workflow in [RXWatcher/silo-plugin-repository](https://github.com/RXWatcher/silo-plugin-repository) and publishes them to the catalog at [`./binaries/`](https://github.com/RXWatcher/silo-plugin-repository/tree/main/binaries).

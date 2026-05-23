@@ -3,7 +3,7 @@ package poll
 import (
 	"context"
 
-	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
+	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
 )
 
 // ScheduledServer implements pluginv1.ScheduledTaskServer by delegating to

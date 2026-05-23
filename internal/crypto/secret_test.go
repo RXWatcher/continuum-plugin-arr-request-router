@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/crypto"
 )
 
 func TestSealOpenRoundTrip(t *testing.T) {

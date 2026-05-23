@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/routing"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/routing"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
 type requestDTO struct {
@@ -44,7 +44,7 @@ func (s *Server) requestsRoutes(r chi.Router) {
 
 // routerRoutes is the inter-plugin contract surface, mounted under
 // /api/router (manifest access: public) so host CallPluginHTTP calls from
-// continuum.requests — which carry no admin user and would 403 against
+// silo.requests — which carry no admin user and would 403 against
 // /api/admin — can reach the read-only live-status endpoints.
 func (s *Server) routerRoutes(r chi.Router) {
 	r.Post("/requests/live", s.handleRequestsLiveBulk)

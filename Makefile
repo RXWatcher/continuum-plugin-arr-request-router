@@ -1,11 +1,11 @@
-BINARY := continuum-plugin-arr-request-router
+BINARY := silo-plugin-arr-request-router
 GO ?= go
 PNPM ?= pnpm
 
 .PHONY: build test test-go test-web clean
 
 build: web-build
-	$(GO) build -o $(BINARY) ./cmd/continuum-plugin-arr-request-router
+	$(GO) build -o $(BINARY) ./cmd/silo-plugin-arr-request-router
 
 web-build:
 	cd web && CI=true $(PNPM) install --frozen-lockfile && $(PNPM) run build

@@ -1,11 +1,11 @@
-# continuum.arrouter — design
+# silo.arrouter — design
 
-A rule-based multi-*arr router. Receives request events from `continuum.requests`,
+A rule-based multi-*arr router. Receives request events from `silo.requests`,
 evaluates the request (with on-demand TMDB enrichment) against an admin-curated
 list of registered Radarr / Sonarr instances, and forwards to **the first
 matching *arr in priority order**. Polls each registered *arr periodically to
 track download/import progress and publishes status events back so subscribers
-(today: `continuum.requests`) can mirror state.
+(today: `silo.requests`) can mirror state.
 
 This plugin is designed for installs that need more than one Radarr or Sonarr
 target. Admins define the available instances and the rules that choose between
@@ -14,23 +14,23 @@ them.
 ## Capabilities (manifest)
 
 - `event_consumer.v1` — subscribes to:
-  - `plugin.continuum.requests.submitted`
-  - `plugin.continuum.requests.cancelled`
+  - `plugin.silo.requests.submitted`
+  - `plugin.silo.requests.cancelled`
 - `scheduled_task.v1` — `poll` task, runs every `poll_interval_seconds`
   (default 30s).
 - `http_routes.v1` — admin SPA at `/admin` (admin-only) with three pages:
   registry list, registry editor, requests queue. `/api/admin/*` for the SPA's
-  data calls. Same theme-injection rule as every other continuum plugin SPA
+  data calls. Same theme-injection rule as every other silo plugin SPA
   (see "SPA theme handling" below).
 
 ## Identity
 
 | | |
 |---|---|
-| Plugin id | `continuum.arrouter` |
+| Plugin id | `silo.arrouter` |
 | Schema | `arrouter` |
 | Postgres role | `plugin_arrouter` |
-| Repo | `continuum-plugin-arr-request-router` |
+| Repo | `silo-plugin-arr-request-router` |
 
 ## DB (schema-per-plugin)
 
@@ -63,7 +63,7 @@ CREATE INDEX registered_arr_kind_priority_idx
   ON arrouter.registered_arr (kind, priority) WHERE enabled;
 
 CREATE TABLE arrouter.request (
-  id                  TEXT PRIMARY KEY,              -- same id continuum.requests uses
+  id                  TEXT PRIMARY KEY,              -- same id silo.requests uses
   tmdb_id             INTEGER NOT NULL,
   media_type          TEXT NOT NULL CHECK (media_type IN ('movie','tv')),
   title               TEXT NOT NULL,
@@ -92,7 +92,7 @@ CREATE INDEX request_routed_arr_idx ON arrouter.request (routed_arr_id)
 
 Notes:
 
-- `api_key` is stored encrypted with the same secret-handling pattern continuum
+- `api_key` is stored encrypted with the same secret-handling pattern silo
   uses for plugin global config secrets. Plaintext at rest is **not** acceptable
   even for an OSS plugin; admins routinely run multiple *arrs and rotating one
   key shouldn't require leaking the rest.
@@ -155,7 +155,7 @@ Admin operations (HTTP API + SPA):
 
 ## Rules JSON shape
 
-Adapted from continuum's `QueryDefinition` (`web/src/api/types.ts` lines
+Adapted from silo's `QueryDefinition` (`web/src/api/types.ts` lines
 977–1017) with **sort, limit, library_ids, and media_scope dropped**: an
 *arr's `kind` is the implicit media filter, and there's nothing to sort or
 paginate during routing.
@@ -195,7 +195,7 @@ groups them visually the same way.
 | field               | type    | source                                       |
 |---------------------|---------|----------------------------------------------|
 | `mediaType`         | string  | `"movie"` \| `"tv"`                          |
-| `libraryId`         | string? | continuum library the request was filed for |
+| `libraryId`         | string? | silo library the request was filed for |
 | `year`              | int     | event payload                                |
 | `decade`            | int     | derived: `year - (year % 10)`                |
 | `requesterUserId`   | string  | event payload                                |
@@ -307,7 +307,7 @@ recorded in the trace — never an error.
 4. For each candidate, evaluate `rules_json` against the merged context.
    First match wins.
 5. If no candidate matches: status = `unrouted`, publish
-   `plugin.continuum.arrouter.unrouted`.
+   `plugin.silo.arrouter.unrouted`.
 
 A request whose candidates all use only Group A fields incurs zero TMDB
 calls. A request that triggers `keywords`-based routing incurs at most two
@@ -335,7 +335,7 @@ match_trace.
 
 ## Event flow
 
-### On `plugin.continuum.requests.submitted`
+### On `plugin.silo.requests.submitted`
 
 Event payload:
 
@@ -356,7 +356,7 @@ Event payload:
 1. INSERT `arrouter.request` row, status=`queued`.
 2. Run the routing pipeline (above).
 3. **No match** → status=`unrouted`, completed_at=now(), match_trace stored,
-   publish `plugin.continuum.arrouter.unrouted`. **Stop.**
+   publish `plugin.silo.arrouter.unrouted`. **Stop.**
 4. **Match** → record `routed_arr_id`, then POST to the chosen *arr:
    - Movie: `POST {url}/api/v3/movie`
      ```json
@@ -382,12 +382,12 @@ Event payload:
      }
      ```
 5. On success: status=`submitted`, capture `external_id`, publish
-   `plugin.continuum.arrouter.submitted`.
+   `plugin.silo.arrouter.submitted`.
 6. On *arr error:
    - `409` "already exists" → status=`submitted`, treat as already there,
-     publish `plugin.continuum.arrouter.submitted`.
+     publish `plugin.silo.arrouter.submitted`.
    - Other 4xx/5xx → status=`failed`, error = body, publish
-     `plugin.continuum.arrouter.failed`.
+     `plugin.silo.arrouter.failed`.
    - Network unreachable → status=`failed` after one immediate retry; do
      **not** fall through to the next-priority *arr (the rule said this *arr
      should handle it; falling through would silently route to a different
@@ -397,7 +397,7 @@ Sonarr: if `tmdbId` lookup yields no series in
 `/api/v3/series/lookup?term=tmdb:N`, fall back to title/year search and pick
 the first hit.
 
-### On `plugin.continuum.requests.cancelled`
+### On `plugin.silo.requests.cancelled`
 
 Event payload:
 
@@ -413,7 +413,7 @@ Event payload:
    - URL/key resolved via `routed_arr_id`. If the registered *arr was
      deleted (`routed_arr_id IS NULL`), skip the DELETE.
 4. UPDATE status=`cancelled`, completed_at=now().
-5. Publish `plugin.continuum.arrouter.cancelled`.
+5. Publish `plugin.silo.arrouter.cancelled`.
 
 ### Periodic poll (every `poll_interval_seconds`)
 
@@ -444,35 +444,35 @@ a slow instance can't starve the others; per-*arr inner loop is sequential.
 
 | Event                                    | When                                              |
 |------------------------------------------|---------------------------------------------------|
-| `plugin.continuum.arrouter.submitted`    | After successful POST to chosen *arr             |
-| `plugin.continuum.arrouter.downloading`  | First time row enters `downloading`              |
-| `plugin.continuum.arrouter.imported`     | Row reaches `imported`                            |
-| `plugin.continuum.arrouter.failed`       | Submission error or staleness                    |
-| `plugin.continuum.arrouter.cancelled`    | After cancel (whether *arr DELETE succeeded)     |
-| `plugin.continuum.arrouter.unrouted`     | Routing produced no match (terminal)             |
+| `plugin.silo.arrouter.submitted`    | After successful POST to chosen *arr             |
+| `plugin.silo.arrouter.downloading`  | First time row enters `downloading`              |
+| `plugin.silo.arrouter.imported`     | Row reaches `imported`                            |
+| `plugin.silo.arrouter.failed`       | Submission error or staleness                    |
+| `plugin.silo.arrouter.cancelled`    | After cancel (whether *arr DELETE succeeded)     |
+| `plugin.silo.arrouter.unrouted`     | Routing produced no match (terminal)             |
 
 Payloads include request id, timestamps, and an optional error. `unrouted` adds
 an optional `reason` string, typically `"no registered *arr matched"`.
 
-## Continuum.requests changes
+## Silo.requests changes
 
 The requests plugin subscribes to Arr Request Router status events so it can
 mirror routing outcomes:
 
-- `plugin.continuum.arrouter.submitted`
-- `plugin.continuum.arrouter.downloading`
-- `plugin.continuum.arrouter.imported`
-- `plugin.continuum.arrouter.failed`
-- `plugin.continuum.arrouter.cancelled`
-- `plugin.continuum.arrouter.unrouted`
+- `plugin.silo.arrouter.submitted`
+- `plugin.silo.arrouter.downloading`
+- `plugin.silo.arrouter.imported`
+- `plugin.silo.arrouter.failed`
+- `plugin.silo.arrouter.cancelled`
+- `plugin.silo.arrouter.unrouted`
 
-`plugin.continuum.arrouter.unrouted` is surfaced as a normal failed request
+`plugin.silo.arrouter.unrouted` is surfaced as a normal failed request
 with reason `"no registered *arr matched"`.
 
 ## Admin HTTP routes
 
 All `/admin*` and `/api/admin/*` routes require admin
-(`X-Continuum-User-Role: admin`, the standard plugin proxy header).
+(`X-Silo-User-Role: admin`, the standard plugin proxy header).
 
 ### Pages (SPA)
 
@@ -507,7 +507,7 @@ All `/admin*` and `/api/admin/*` routes require admin
 
 ### Rule editor: CollectionBuilder port
 
-We **port** continuum's `web/src/components/collections/CollectionBuilder.tsx`
+We **port** silo's `web/src/components/collections/CollectionBuilder.tsx`
 into this plugin's `web/` rather than re-implementing a guided builder from
 scratch. The QueryDefinition shape is structurally compatible after dropping
 sort/limit/library_ids/media_scope; the field vocabulary is what changes
@@ -536,20 +536,20 @@ Port scope:
 - The "preview matches" affordance from CollectionBuilder is replaced by
   the "Test rules" panel (TMDB-id-driven, server-side).
 
-Visual / UX should match continuum's existing CollectionBuilder closely —
-admins moving between continuum's collections and arrouter's rules should
+Visual / UX should match silo's existing CollectionBuilder closely —
+admins moving between silo's collections and arrouter's rules should
 feel they're using the same tool.
 
 ## SPA theme handling
 
-Same standing rule as every continuum plugin SPA: the prerender / SPA
+Same standing rule as every silo plugin SPA: the prerender / SPA
 handler must inject `data-theme="<theme>"` onto `<html>` at request time.
-Resolve the theme from the `?theme=...` query param continuum's sidebar
-appends (see `continuum/web/src/components/AppSidebar.tsx` `buildPluginHref`)
-or from continuum's injected header. Do **not** hardcode a default theme —
-fall back to whatever continuum sends, with a single neutral fallback only
+Resolve the theme from the `?theme=...` query param silo's sidebar
+appends (see `silo/web/src/components/AppSidebar.tsx` `buildPluginHref`)
+or from silo's injected header. Do **not** hardcode a default theme —
+fall back to whatever silo sends, with a single neutral fallback only
 if no theme is supplied. Pull in the same CSS custom-property values
-continuum uses, via the ported design tokens in this plugin's `index.css`.
+silo uses, via the ported design tokens in this plugin's `index.css`.
 
 Test by hitting `/plugins/{id}/admin` from a browser session where the user
 has a non-default theme set, and verify `<html data-theme="...">` matches.

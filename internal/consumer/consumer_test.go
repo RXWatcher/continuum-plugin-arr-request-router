@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/consumer"
 )
 
 type fakeSubmitter struct {
@@ -32,7 +32,7 @@ func TestDispatchSubmittedRoutesToSubmitter(t *testing.T) {
 	s := &fakeSubmitter{}
 	c := &fakeCanceller{}
 	d := consumer.New(s, c, nil)
-	if err := d.Handle(context.Background(), "plugin.continuum.requests.submitted", map[string]any{"requestId": "r1"}); err != nil {
+	if err := d.Handle(context.Background(), "plugin.silo.requests.submitted", map[string]any{"requestId": "r1"}); err != nil {
 		t.Fatal(err)
 	}
 	if !s.called || c.called {
@@ -44,9 +44,9 @@ func TestDispatchIgnoresSubmittedTargetedAtAnotherRouter(t *testing.T) {
 	s := &fakeSubmitter{}
 	c := &fakeCanceller{}
 	d := consumer.New(s, c, nil)
-	if err := d.Handle(context.Background(), "plugin.continuum.requests.submitted", map[string]any{
+	if err := d.Handle(context.Background(), "plugin.silo.requests.submitted", map[string]any{
 		"requestId":        "r1",
-		"target_plugin_id": "continuum.arrproxy",
+		"target_plugin_id": "silo.arrproxy",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -58,13 +58,13 @@ func TestDispatchIgnoresSubmittedTargetedAtAnotherRouter(t *testing.T) {
 func TestDispatchAcceptsOwnAndLegacyTargets(t *testing.T) {
 	for _, payload := range []map[string]any{
 		{"requestId": "r1"},
-		{"requestId": "r1", "target_plugin_id": "continuum.arrouter"},
-		{"requestId": "r1", "target_provider_plugin_id": "continuum.arrouter"},
+		{"requestId": "r1", "target_plugin_id": "silo.arrouter"},
+		{"requestId": "r1", "target_provider_plugin_id": "silo.arrouter"},
 	} {
 		s := &fakeSubmitter{}
 		c := &fakeCanceller{}
 		d := consumer.New(s, c, nil)
-		if err := d.Handle(context.Background(), "plugin.continuum.requests.submitted", payload); err != nil {
+		if err := d.Handle(context.Background(), "plugin.silo.requests.submitted", payload); err != nil {
 			t.Fatal(err)
 		}
 		if !s.called || c.called {
@@ -79,14 +79,14 @@ func TestDispatchRejectsMalformedOrConflictingTargets(t *testing.T) {
 		{"requestId": "r1", "target_plugin_id": float64(12)},
 		{
 			"requestId":                 "r1",
-			"target_plugin_id":          "continuum.arrproxy",
-			"target_provider_plugin_id": "continuum.arrouter",
+			"target_plugin_id":          "silo.arrproxy",
+			"target_provider_plugin_id": "silo.arrouter",
 		},
 	} {
 		s := &fakeSubmitter{}
 		c := &fakeCanceller{}
 		d := consumer.New(s, c, nil)
-		if err := d.Handle(context.Background(), "plugin.continuum.requests.submitted", payload); err != nil {
+		if err := d.Handle(context.Background(), "plugin.silo.requests.submitted", payload); err != nil {
 			t.Fatal(err)
 		}
 		if s.called || c.called {
@@ -99,7 +99,7 @@ func TestDispatchCancelledRoutesToCanceller(t *testing.T) {
 	s := &fakeSubmitter{}
 	c := &fakeCanceller{}
 	d := consumer.New(s, c, nil)
-	if err := d.Handle(context.Background(), "plugin.continuum.requests.cancelled", map[string]any{"requestId": "r1"}); err != nil {
+	if err := d.Handle(context.Background(), "plugin.silo.requests.cancelled", map[string]any{"requestId": "r1"}); err != nil {
 		t.Fatal(err)
 	}
 	if s.called || !c.called {
@@ -123,7 +123,7 @@ func TestDispatchPropagatesHandlerError(t *testing.T) {
 	s := &fakeSubmitter{err: errors.New("boom")}
 	c := &fakeCanceller{}
 	d := consumer.New(s, c, nil)
-	err := d.Handle(context.Background(), "plugin.continuum.requests.submitted", map[string]any{})
+	err := d.Handle(context.Background(), "plugin.silo.requests.submitted", map[string]any{})
 	if err == nil || err.Error() != "boom" {
 		t.Fatalf("got err %v", err)
 	}
@@ -131,10 +131,10 @@ func TestDispatchPropagatesHandlerError(t *testing.T) {
 
 func TestDispatchNilHandlersAreNoOp(t *testing.T) {
 	d := consumer.New(nil, nil, nil)
-	if err := d.Handle(context.Background(), "plugin.continuum.requests.submitted", map[string]any{"requestId": "r1"}); err != nil {
+	if err := d.Handle(context.Background(), "plugin.silo.requests.submitted", map[string]any{"requestId": "r1"}); err != nil {
 		t.Fatalf("submitted with nil handler: %v", err)
 	}
-	if err := d.Handle(context.Background(), "plugin.continuum.requests.cancelled", map[string]any{"requestId": "r1"}); err != nil {
+	if err := d.Handle(context.Background(), "plugin.silo.requests.cancelled", map[string]any{"requestId": "r1"}); err != nil {
 		t.Fatalf("cancelled with nil handler: %v", err)
 	}
 }

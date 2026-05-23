@@ -1,6 +1,6 @@
 # Arr Request Router — Operator Runbook
 
-Plugin ID: `continuum.arrouter`
+Plugin ID: `silo.arrouter`
 
 This document is the **operations playbook** for the plugin: bootstrap order,
 runtime invariants, log reading, common failures, and verification flows. For
@@ -38,7 +38,7 @@ state and the consumer/poll loops short-circuit. Bring it up in this order:
 
 | Subsystem | Lives in | What it does |
 | --- | --- | --- |
-| Event consumer (`router`) | `internal/consumer` | Listens for `plugin.continuum.requests.submitted` / `cancelled`. Submit handler upserts → routes → dispatches to arr. Cancel handler best-effort DELETEs on the arr then marks the row. |
+| Event consumer (`router`) | `internal/consumer` | Listens for `plugin.silo.requests.submitted` / `cancelled`. Submit handler upserts → routes → dispatches to arr. Cancel handler best-effort DELETEs on the arr then marks the row. |
 | Poll loop (`poll`) | `internal/poll` | Scheduled task. Groups in-flight rows by `routed_arr_id`, fans out one goroutine per arr, polls sequentially within each arr. Drives `downloading`/`imported`/`failed` transitions. Also runs ad-hoc when the host invokes `ScheduledTaskServer.Run` (e.g. an admin "Run now"). |
 | TMDB cache | `internal/tmdb` | In-process cache with 24h-style TTL per `(mediaType, tmdbID)` and per enrichment group. Errors are **never** cached. |
 | Crypto | `internal/crypto` | AES-256-GCM (key = SHA-256 of `secret_key` string). Wraps every stored arr `api_key`. |
@@ -113,8 +113,8 @@ state and the consumer/poll loops short-circuit. Bring it up in this order:
 ### Why is the API returning 403?
 
 `requireAdmin` middleware rejects anything without the
-`X-Continuum-User-Role: admin` header. In normal operation the plugin host
-stamps this; getting 403 from outside Continuum means you are bypassing the
+`X-Silo-User-Role: admin` header. In normal operation the plugin host
+stamps this; getting 403 from outside Silo means you are bypassing the
 host (e.g. hitting the plugin port directly). Don't do that.
 
 ## Logs to grep
@@ -154,12 +154,12 @@ Probe states:
    `has_api_key: true`.
 4. `POST /api/admin/registry/{id}/test-connection` should return 200 with the
    arr's version.
-5. Approve one real request from `continuum.requests`. Observe the row in the
+5. Approve one real request from `silo.requests`. Observe the row in the
    admin Requests tab transition `queued` → `submitted` (immediate) →
    `downloading` (next poll after the arr picks it up) → `imported` (when the
    arr finishes).
 6. The corresponding events should also appear on
-   `plugin.continuum.arrouter.*` for downstream consumers (notifications etc.)
+   `plugin.silo.arrouter.*` for downstream consumers (notifications etc.)
    to pick up.
 
 ## Detailed references

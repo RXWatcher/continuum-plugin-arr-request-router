@@ -7,19 +7,19 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-const pluginID = "continuum.arrouter"
+const pluginID = "silo.arrouter"
 const (
 	targetPluginIDKey         = "target_plugin_id"
 	targetProviderPluginIDKey = "target_provider_plugin_id"
 )
 
-// Submitter handles plugin.continuum.requests.submitted events.
+// Submitter handles plugin.silo.requests.submitted events.
 // Implemented by *SubmitHandler in submit.go (Task 7.2).
 type Submitter interface {
 	HandleSubmitted(ctx context.Context, payload map[string]any) error
 }
 
-// Canceller handles plugin.continuum.requests.cancelled events.
+// Canceller handles plugin.silo.requests.cancelled events.
 // Implemented by *CancelHandler in cancel.go (Task 7.4).
 type Canceller interface {
 	HandleCancelled(ctx context.Context, payload map[string]any) error
@@ -50,13 +50,13 @@ func (d *Dispatcher) Handle(ctx context.Context, eventName string, payload map[s
 		return nil
 	}
 	switch eventName {
-	case "plugin.continuum.requests.submitted":
+	case "plugin.silo.requests.submitted":
 		if d.submit == nil {
 			d.log.Debug("submitted event ignored; submit handler not wired")
 			return nil
 		}
 		return d.submit.HandleSubmitted(ctx, payload)
-	case "plugin.continuum.requests.cancelled":
+	case "plugin.silo.requests.cancelled":
 		if d.cancel == nil {
 			d.log.Debug("cancelled event ignored; cancel handler not wired")
 			return nil

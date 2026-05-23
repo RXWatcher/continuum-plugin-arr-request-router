@@ -13,8 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/migrate"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/migrate"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
 var (
@@ -33,7 +33,7 @@ func schemaName() string {
 
 // testDSN returns the DSN to use for integration tests. Honors
 // TEST_DATABASE_URL if set (substituting the schema name into search_path),
-// otherwise defaults to the local continuum-postgres container.
+// otherwise defaults to the local silo-postgres container.
 func testDSN() string {
 	if v := os.Getenv("TEST_DATABASE_URL"); v != "" {
 		u, err := url.Parse(v)
@@ -46,7 +46,7 @@ func testDSN() string {
 		return v
 	}
 	return fmt.Sprintf(
-		"postgres://continuum:continuum@localhost:5432/continuum?search_path=%s&sslmode=disable",
+		"postgres://silo:silo@localhost:5432/silo?search_path=%s&sslmode=disable",
 		schemaName(),
 	)
 }

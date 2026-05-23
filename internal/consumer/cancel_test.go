@@ -10,10 +10,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/consumer"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -346,7 +346,7 @@ func TestCancelExternalIDMissingSkipsDelete(t *testing.T) {
 }
 
 // TestCancelDispatcherIntegration — routes via Dispatcher.Handle for
-// "plugin.continuum.requests.cancelled". Confirms the wiring end-to-end.
+// "plugin.silo.requests.cancelled". Confirms the wiring end-to-end.
 func TestCancelDispatcherIntegration(t *testing.T) {
 	ctx := context.Background()
 	st := newTestStore(t)
@@ -361,7 +361,7 @@ func TestCancelDispatcherIntegration(t *testing.T) {
 
 	insertSubmittedRadarr(t, ctx, st, "req-disp-cancel", srv.URL, 11)
 
-	if err := d.Handle(ctx, "plugin.continuum.requests.cancelled", map[string]any{
+	if err := d.Handle(ctx, "plugin.silo.requests.cancelled", map[string]any{
 		"requestId": "req-disp-cancel",
 	}); err != nil {
 		t.Fatalf("Handle: %v", err)

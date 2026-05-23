@@ -3,8 +3,8 @@ import { ArrowLeft, Activity, Blocks, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Plain anchor (not router Link) so the browser does a full-page nav out of
-// the plugin proxy back into continuum's admin section.
-const backToContinuumHref = "/admin/plugins";
+// the plugin proxy back into silo's admin section.
+const backToSiloHref = "/admin/plugins";
 
 export default function Layout() {
   return (
@@ -14,12 +14,12 @@ export default function Layout() {
       <header className="glass-dark border-border/70 sticky top-0 z-30 mx-3 mt-3 flex items-center justify-between rounded-2xl border px-4 py-3 sm:mx-6 lg:mx-8">
         <div className="flex items-center gap-3">
           <a
-            href={backToContinuumHref}
+            href={backToSiloHref}
             className="text-muted-foreground hover:bg-surface-hover hover:text-foreground inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors"
-            title="Back to Continuum plugins"
+            title="Back to Silo plugins"
           >
             <ArrowLeft className="size-4" />
-            <span className="hidden sm:inline">Continuum</span>
+            <span className="hidden sm:inline">Silo</span>
           </a>
           <span className="text-border/60" aria-hidden>
             /

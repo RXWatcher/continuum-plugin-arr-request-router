@@ -1,6 +1,6 @@
 package routing
 
-// RequestEvent is the subset of the continuum.requests event payload we care about.
+// RequestEvent is the subset of the silo.requests event payload we care about.
 type RequestEvent struct {
 	RequestID        string
 	MediaType        string // "movie" | "tv"

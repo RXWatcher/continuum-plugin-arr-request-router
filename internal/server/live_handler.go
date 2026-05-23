@@ -10,9 +10,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
 // liveItem is one in-flight download: a movie's file or one series episode.
@@ -26,8 +26,8 @@ type liveItem struct {
 }
 
 // liveStatus is the on-demand, freshly-probed status of one request — the
-// shared contract every request_router.v1 plugin exposes so continuum.requests
-// can reconcile against ground truth. Shape matches continuum.arrproxy's.
+// shared contract every request_router.v1 plugin exposes so silo.requests
+// can reconcile against ground truth. Shape matches silo.arrproxy's.
 type liveStatus struct {
 	RequestID   string     `json:"request_id"`
 	Found       bool       `json:"found"`

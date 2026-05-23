@@ -10,10 +10,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/crypto"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
-	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/store"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/arr"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/crypto"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/event"
+	"github.com/RXWatcher/silo-plugin-arr-request-router/internal/store"
 )
 
 // Deps is the runtime state the poller needs. A nil return from the deps

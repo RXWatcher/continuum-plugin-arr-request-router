@@ -1,4 +1,4 @@
-// Package event publishes named events into continuum's event hub via the
+// Package event publishes named events into silo's event hub via the
 // SDK's RuntimeHost client. The host stamps `plugin.<plugin_id>.` in front of
 // the supplied name, so callers pass the unprefixed leaf (e.g. "submitted",
 // "cancelled"). Failures are logged but never bubble up to the caller —

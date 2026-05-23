@@ -9,7 +9,7 @@ covers the rule engine itself) and the operator runbook in
 ## States
 
 ```
-                 plugin.continuum.requests.submitted
+                 plugin.silo.requests.submitted
                               │
                               ▼
                           ┌────────┐
@@ -51,7 +51,7 @@ covers the rule engine itself) and the operator runbook in
                   └────────┘             on any         │
                        ▲                 non-terminal   │
                        │                                │
-              plugin.continuum.requests.cancelled       │
+              plugin.silo.requests.cancelled       │
                        │                                │
                        ▼                                │
                  ┌────────────┐                         │
@@ -121,7 +121,7 @@ overwrite a `failed`/`imported` row.
 
 ### `cancelled`
 
-Driven by the `plugin.continuum.requests.cancelled` event. Sequence:
+Driven by the `plugin.silo.requests.cancelled` event. Sequence:
 
 1. Parse `requestId`; missing → no-op.
 2. Load row; not found or already terminal → no-op.
@@ -215,7 +215,7 @@ Important gotchas:
 
 ## Event topics published
 
-All under `plugin.continuum.arrouter.`:
+All under `plugin.silo.arrouter.`:
 
 | Topic | Fired by | Payload |
 | --- | --- | --- |
