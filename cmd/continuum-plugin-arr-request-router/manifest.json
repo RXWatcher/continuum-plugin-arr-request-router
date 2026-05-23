@@ -48,6 +48,12 @@
       "access": "admin"
     },
     {
+      "id": "router",
+      "method": "*",
+      "path": "/api/router/*",
+      "access": "public"
+    },
+    {
       "id": "assets",
       "method": "GET",
       "path": "/assets/*",

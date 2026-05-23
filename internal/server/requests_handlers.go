@@ -42,6 +42,15 @@ func (s *Server) requestsRoutes(r chi.Router) {
 	r.Post("/{id}/force-fail", s.handleRequestsForceFail)
 }
 
+// routerRoutes is the inter-plugin contract surface, mounted under
+// /api/router (manifest access: public) so host CallPluginHTTP calls from
+// continuum.requests — which carry no admin user and would 403 against
+// /api/admin — can reach the read-only live-status endpoints.
+func (s *Server) routerRoutes(r chi.Router) {
+	r.Post("/requests/live", s.handleRequestsLiveBulk)
+	r.Get("/requests/{id}/live", s.handleRequestsLive)
+}
+
 func (s *Server) handleRequestsList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	status := q.Get("status")

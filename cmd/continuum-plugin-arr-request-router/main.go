@@ -172,6 +172,8 @@ func main() {
 			Store:  s,
 			Events: ev,
 			Poll:   poller,
+			Radarr: radarrFactory,
+			Sonarr: sonarrFactory,
 			WebFS:  web.FS(),
 		}
 

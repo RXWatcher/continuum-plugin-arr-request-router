@@ -94,15 +94,64 @@ func (c httpClient) do(ctx context.Context, method, path string, query url.Value
 }
 
 type QueueItem struct {
-	ID                    int    `json:"id"`
-	MovieID               int    `json:"movieId,omitempty"`
-	SeriesID              int    `json:"seriesId,omitempty"`
-	Status                string `json:"status"`
-	TrackedDownloadStatus string `json:"trackedDownloadStatus,omitempty"`
+	ID                    int           `json:"id"`
+	MovieID               int           `json:"movieId,omitempty"`
+	SeriesID              int           `json:"seriesId,omitempty"`
+	EpisodeID             int           `json:"episodeId,omitempty"`
+	Title                 string        `json:"title,omitempty"`
+	Status                string        `json:"status"`
+	TrackedDownloadStatus string        `json:"trackedDownloadStatus,omitempty"`
+	TrackedDownloadState  string        `json:"trackedDownloadState,omitempty"`
+	ErrorMessage          string        `json:"errorMessage,omitempty"`
+	Size                  int64         `json:"size,omitempty"`
+	SizeLeft              int64         `json:"sizeleft,omitempty"`
+	Episode               *QueueEpisode `json:"episode,omitempty"`
+}
+
+// QueueEpisode is the episode metadata Sonarr inlines into a queue record
+// when fetched with includeEpisode=true; absent for Radarr.
+type QueueEpisode struct {
+	SeasonNumber  int    `json:"seasonNumber"`
+	EpisodeNumber int    `json:"episodeNumber"`
+	Title         string `json:"title"`
 }
 
 type queueEnvelope struct {
-	Records []QueueItem `json:"records"`
+	Page         int         `json:"page"`
+	PageSize     int         `json:"pageSize"`
+	TotalRecords int         `json:"totalRecords"`
+	Records      []QueueItem `json:"records"`
+}
+
+// fetchAllQueue pages through the aggregated /api/v3/queue endpoint and
+// returns every record. arrproxydb's /queue proxy aggregates all servers in
+// the quality group and only honours page/pageSize — movieId / seriesId
+// filters are ignored — so callers fetch the whole queue and filter by id
+// client-side. The page cap bounds a runaway loop on a bad totalRecords.
+func (c httpClient) fetchAllQueue(ctx context.Context) ([]QueueItem, error) {
+	const pageSize = 100
+	const maxPages = 50
+	var all []QueueItem
+	for page := 1; page <= maxPages; page++ {
+		q := url.Values{}
+		q.Set("page", strconv.Itoa(page))
+		q.Set("pageSize", strconv.Itoa(pageSize))
+		q.Set("includeEpisode", "true")
+		body, err := c.do(ctx, http.MethodGet, "/api/v3/queue", q, nil)
+		if err != nil {
+			return nil, err
+		}
+		var env queueEnvelope
+		if err := json.Unmarshal(body, &env); err != nil {
+			return nil, fmt.Errorf("decode queue: %w", err)
+		}
+		all = append(all, env.Records...)
+		if len(env.Records) < pageSize ||
+			(env.TotalRecords > 0 && len(all) >= env.TotalRecords) {
+			break
+		}
+	}
+	return all, nil
 }
 
 type RootFolder struct {

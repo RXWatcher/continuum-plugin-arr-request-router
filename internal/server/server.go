@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/arr"
 	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/auth"
 	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/consumer"
 	"github.com/RXWatcher/continuum-plugin-arr-request-router/internal/event"
@@ -25,7 +26,11 @@ type Deps struct {
 	Submit    *consumer.SubmitHandler // for retry / re-route in Task 9.5
 	OnConfig  func(context.Context, store.AppConfig) error
 	SecretKey string
-	WebFS     http.FileSystem // dist/ embedded SPA — populated by Task 11.3
+	// Radarr / Sonarr build a per-instance *arr client; the live-status
+	// handler dials whichever registered instance routed a given request.
+	Radarr func(url, apiKey string) *arr.Radarr
+	Sonarr func(url, apiKey string) *arr.Sonarr
+	WebFS  http.FileSystem // dist/ embedded SPA — populated by Task 11.3
 }
 
 // Server holds the wired dependencies and exposes an http.Handler.
@@ -58,6 +63,9 @@ func (s *Server) Handler() http.Handler {
 		r.Route("/requests", s.requestsRoutes)
 		r.Get("/targets/health", s.handleTargetsHealth)
 	})
+
+	// /api/router carries no requireAdmin middleware — see routerRoutes.
+	r.Route("/api/router", s.routerRoutes)
 
 	r.Get("/admin", s.handleSPA)
 	r.Get("/admin/*", s.handleSPA)

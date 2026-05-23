@@ -126,18 +126,21 @@ func (s *Sonarr) DeleteSeries(ctx context.Context, id int) error {
 	return nil
 }
 
+// QueueBySeries returns only the queue records for the given Sonarr series
+// id. The aggregated /queue endpoint can't be filtered server-side, so we
+// pull the whole queue and match on seriesId here.
 func (s *Sonarr) QueueBySeries(ctx context.Context, seriesID int) ([]QueueItem, error) {
-	q := url.Values{}
-	q.Set("seriesId", intParam(seriesID))
-	body, err := s.do(ctx, http.MethodGet, "/api/v3/queue", q, nil)
+	all, err := s.fetchAllQueue(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var env queueEnvelope
-	if err := json.Unmarshal(body, &env); err != nil {
-		return nil, fmt.Errorf("decode queue: %w", err)
+	var out []QueueItem
+	for _, item := range all {
+		if item.SeriesID == seriesID {
+			out = append(out, item)
+		}
 	}
-	return env.Records, nil
+	return out, nil
 }
 
 func (s *Sonarr) RootFolders(ctx context.Context) ([]RootFolder, error) {

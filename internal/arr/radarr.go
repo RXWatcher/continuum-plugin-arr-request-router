@@ -105,18 +105,21 @@ func (r *Radarr) DeleteMovie(ctx context.Context, id int) error {
 	return nil
 }
 
+// QueueByMovie returns only the queue records for the given Radarr movie id.
+// The aggregated /queue endpoint can't be server-side filtered, so we pull
+// the whole queue and match on movieId here.
 func (r *Radarr) QueueByMovie(ctx context.Context, movieID int) ([]QueueItem, error) {
-	q := url.Values{}
-	q.Set("movieId", intParam(movieID))
-	body, err := r.do(ctx, http.MethodGet, "/api/v3/queue", q, nil)
+	all, err := r.fetchAllQueue(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var env queueEnvelope
-	if err := json.Unmarshal(body, &env); err != nil {
-		return nil, fmt.Errorf("decode queue: %w", err)
+	var out []QueueItem
+	for _, item := range all {
+		if item.MovieID == movieID {
+			out = append(out, item)
+		}
 	}
-	return env.Records, nil
+	return out, nil
 }
 
 func (r *Radarr) RootFolders(ctx context.Context) ([]RootFolder, error) {
